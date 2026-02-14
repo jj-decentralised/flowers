@@ -6,11 +6,11 @@
   <title>The Living Vases</title>
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- Fabric.js from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
-
   <!-- Astronomy Engine from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/astronomy-engine/astronomy.browser.min.js"></script>
+
+  <!-- html2canvas for image export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -24,7 +24,7 @@
 
     <!-- The Arrangement (top) -->
     <section id="canvas-section">
-      <canvas id="main-canvas" width="800" height="1000"></canvas>
+      <div id="arrangement-container"></div>
     </section>
 
     <!-- Thin separator -->
@@ -103,6 +103,7 @@
   <script src="js/astronomyEngine.js"></script>
   <script src="js/symbolismEngine.js"></script>
   <script src="js/imageProcessor.js"></script>
+  <script src="js/flowerImageApi.js"></script>
   <script src="js/compositionEngine.js"></script>
   <script src="js/birdSongs.js"></script>
   <script src="js/lovePoems.js"></script>

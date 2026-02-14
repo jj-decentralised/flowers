@@ -35,9 +35,10 @@ body {
   max-width: 800px;
   margin: 0 auto;
   padding: 0;
+  padding-bottom: 4rem;
 }
 
-/* ---------- Canvas Section (top) ---------- */
+/* ---------- Composition Section (top) ---------- */
 
 #canvas-section {
   width: 100%;
@@ -46,10 +47,30 @@ body {
   background: #ffffff;
 }
 
-#main-canvas {
-  display: block;
+#arrangement-container {
+  position: relative;
+  width: 800px;
+  height: 1000px;
   max-width: 100%;
-  height: auto;
+  overflow: hidden;
+  background: #ffffff;
+  margin: 0 auto;
+}
+
+/* Composition elements */
+.comp-vase {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.comp-flower {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.comp-foliage {
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* ---------- Separator ---------- */
@@ -327,9 +348,10 @@ body {
 /* ---------- Responsive ---------- */
 
 @media (max-width: 600px) {
-  #main-canvas {
+  #arrangement-container {
     width: 100% !important;
     height: auto !important;
+    min-height: 600px;
   }
 
   .content-section {
@@ -343,10 +365,4 @@ body {
   #poem-section blockquote {
     font-size: 1rem;
   }
-}
-
-/* ---------- Bottom spacing ---------- */
-
-#app {
-  padding-bottom: 4rem;
 }

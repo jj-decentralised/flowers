@@ -81,7 +81,7 @@ const UI = (function () {
         elements = {
             birthdayInput:    document.getElementById('birthday-input'),
             generateBtn:      document.getElementById('generate-btn'),
-            canvas:           document.getElementById('main-canvas'),
+            compositionContainer: document.getElementById('arrangement-container'),
             loadingOverlay:   document.getElementById('loading-overlay'),
             loadingMessage:   document.getElementById('loading-message'),
             receipt:          document.getElementById('receipt'),
@@ -535,44 +535,49 @@ const UI = (function () {
      * falls back to direct canvas toDataURL.
      */
     function downloadImage() {
-        var dataUrl = null;
-
-        // Strategy 1: Ask the CompositionEngine (Fabric.js wrapper)
+        // Use CompositionEngine.exportAsImage (html2canvas)
         if (typeof CompositionEngine !== 'undefined' &&
             typeof CompositionEngine.exportAsImage === 'function') {
-            try {
-                dataUrl = CompositionEngine.exportAsImage();
-            } catch (e) {
-                console.warn('[UI] CompositionEngine.exportAsImage failed:', e.message);
+            var result = CompositionEngine.exportAsImage();
+            if (result && typeof result.then === 'function') {
+                result.then(function (dataUrl) {
+                    if (dataUrl) {
+                        triggerDownload(dataUrl);
+                    } else {
+                        console.warn('[UI] Export returned null');
+                    }
+                }).catch(function (e) {
+                    console.warn('[UI] Export failed:', e.message);
+                });
+                return;
             }
         }
 
-        // Strategy 2: Direct canvas export
-        if (!dataUrl && elements.canvas) {
-            try {
-                dataUrl = elements.canvas.toDataURL('image/png');
-            } catch (e) {
-                console.warn('[UI] Canvas toDataURL failed (likely tainted):', e.message);
-            }
-        }
-
-        if (!dataUrl) {
-            console.error('[UI] Unable to export canvas image.');
+        // Fallback: try html2canvas directly on the container
+        if (typeof html2canvas !== 'undefined' && elements.compositionContainer) {
+            html2canvas(elements.compositionContainer, {
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            }).then(function (canvas) {
+                triggerDownload(canvas.toDataURL('image/png'));
+            }).catch(function (e) {
+                console.warn('[UI] html2canvas fallback failed:', e.message);
+            });
             return;
         }
 
-        // Create a temporary link and trigger the download
+        console.error('[UI] Unable to export image.');
+    }
+
+    function triggerDownload(dataUrl) {
         var link = document.createElement('a');
         link.download = 'living-vase-' + Date.now() + '.png';
         link.href = dataUrl;
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-
-        // Clean up
-        setTimeout(function () {
-            document.body.removeChild(link);
-        }, 100);
+        setTimeout(function () { document.body.removeChild(link); }, 100);
     }
 
     // -------------------------------------------------------------------

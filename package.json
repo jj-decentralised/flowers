@@ -1,22 +1,22 @@
 {
   "name": "the-living-vases",
-  "version": "1.0.0",
-  "description": "The Living Vases — a vanilla JS web app that generates living floral compositions on museum vases using real-time data from weather, astronomy, and the Cleveland Museum of Art API.",
+  "version": "2.0.0",
+  "description": "The Living Vases — a generative web app that composites real museum vase photographs with real flower photographs, driven by Singapore weather data and astronomical positions.",
   "main": "index.html",
   "scripts": {
     "start": "npx serve . -l 3000",
     "dev": "npx serve . -l 3000 --cors"
   },
   "dependencies": {
-    "fabric": "^5.3.0",
     "astronomy-engine": "^2.1.19"
   },
   "keywords": [
-    "fabric.js",
     "generative-art",
     "museum",
     "flora",
-    "astronomy"
+    "astronomy",
+    "met-museum",
+    "wikimedia"
   ],
   "license": "MIT"
 }
