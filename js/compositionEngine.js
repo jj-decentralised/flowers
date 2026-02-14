@@ -1,23 +1,16 @@
 /**
- * compositionEngine.js — 3-Layer Photo Composition
+ * compositionEngine.js — SVG Flower Composition
  *
- * Creates a photorealistic floral arrangement by compositing real
- * flower photographs with a museum vase photograph using HTML/CSS.
+ * Composites SVG-generated flower illustrations with museum vase
+ * photographs using HTML/CSS positioning.
  *
  * Layer architecture (bottom to top):
- *   z-index  5  — Vase body (background-removed photo)
- *   z-index  8  — Foliage (green leaves, multiply blend)
- *   z-index 15-35 — Flower photos (multiply blend, soft masks)
- *   z-index 40  — Vase lip mask (top rim overlay — flowers appear to enter vase)
+ *   z-index  5  — Vase photo (raw museum image, no processing)
+ *   z-index  8  — Foliage SVGs
+ *   z-index 15-35 — Flower SVGs (transparent backgrounds)
  *   z-index 50  — Cohesion overlay (vignette + warm wash)
  *
- * Key techniques:
- *   - mix-blend-mode: multiply makes white/light backgrounds vanish
- *   - CSS radial-gradient masks give soft natural edges
- *   - Ring-based packing creates a dense, dome-shaped bouquet
- *   - The lip mask on top creates the illusion of flowers sitting IN the vase
- *
- * Dependencies: ImageProcessor (global), optional html2canvas for export
+ * Dependencies: FlowerGenerator (global), optional html2canvas for export
  */
 
 const CompositionEngine = (function () {
@@ -117,52 +110,30 @@ const CompositionEngine = (function () {
         container.innerHTML = '';
         container.style.height = CONTAINER_HEIGHT + 'px';
 
-        console.log('[CompositionEngine] Starting 3-layer composition...');
+        console.log('[CompositionEngine] Starting composition...');
 
-        // Determine vase image URLs (processed vs raw)
-        var vaseBodyUrl = null;
-        var lipMaskUrl = null;
-        var mouthData = null;
-        var vaseDimensions = null;
+        // Use raw vase image directly (no background removal — CORS blocks it)
+        var vaseUrl = (vaseData && vaseData.imageUrl) || null;
 
-        if (vaseData) {
-            vaseBodyUrl = vaseData.processedImageDataUrl || vaseData.imageUrl || null;
-            lipMaskUrl = vaseData.lipMaskDataUrl || null;
-            mouthData = vaseData.mouth || null;
-            vaseDimensions = vaseData.dimensions || null;
-        }
-
-        // Step 1: Place vase body (z-index 5) — BEHIND flowers
+        // Step 1: Place vase photo (z-index 5)
         var vaseInfo = null;
         try {
-            vaseInfo = await placeVase(vaseBodyUrl, lipMaskUrl, mouthData, vaseDimensions, vaseData);
-            console.log('[CompositionEngine] Vase placed (body + lip mask)');
+            vaseInfo = await placeVase(vaseUrl, vaseData);
+            console.log('[CompositionEngine] Vase placed');
         } catch (e) {
             console.warn('[CompositionEngine] Vase placement failed:', e.message);
             vaseInfo = placeProceduralVase();
         }
 
-        // Step 2: Resolve flower images
+        // Step 2: Use flower images from map (SVG data URLs from FlowerGenerator)
         var flowers = bouquetRecipe.flowers || [];
-        var flowerImages = {};
-
-        if (flowerImageMap && Object.keys(flowerImageMap).length > 0) {
-            flowerImages = flowerImageMap;
-        } else if (typeof FlowerImageApi !== 'undefined') {
-            try {
-                var flowerNames = flowers.map(function (f) { return f.name || 'Rose'; });
-                flowerImages = await FlowerImageApi.getMultipleFlowerImages(flowerNames);
-            } catch (e) {
-                console.warn('[CompositionEngine] Flower image fetch failed:', e.message);
-            }
-        }
+        var flowerImages = flowerImageMap || {};
 
         // Step 3: Place foliage (z-index 8) — behind flowers, in front of vase body
         try { placeFoliage(vaseInfo, bouquetRecipe, flowerImages); }
         catch (e) { console.warn('[CompositionEngine] Foliage failed:', e.message); }
 
-        // Step 4: Place flowers (z-index 15-35) — with multiply blend, no circles
-        // NOTE: No stems — in a real bouquet stems are hidden inside the vase
+        // Step 4: Place flowers (z-index 15-35) — SVGs with transparent backgrounds
         try {
             placeFlowers(vaseInfo, flowers, flowerImages, bouquetRecipe);
             console.log('[CompositionEngine] Flowers placed');
@@ -170,23 +141,20 @@ const CompositionEngine = (function () {
             console.warn('[CompositionEngine] Flower placement failed:', e.message);
         }
 
-        // Step 5: Place lip mask ABOVE flowers (z-index 40) — already done in placeVase
-        // (The lip mask element was already appended at z-index 40)
-
-        // Step 6: Cohesion overlay (z-index 50)
+        // Step 5: Cohesion overlay (z-index 50)
         addCohesionOverlay(vaseInfo);
 
         console.log('[CompositionEngine] Composition complete');
     }
 
     // -----------------------------------------------------------------
-    // Layer: Vase (split into body + lip mask)
+    // Layer: Vase (raw museum photo, no processing)
     // -----------------------------------------------------------------
 
-    async function placeVase(vaseBodyUrl, lipMaskUrl, mouthData, vaseDimensions, vaseData) {
-        if (!vaseBodyUrl) return placeProceduralVase();
+    async function placeVase(vaseUrl, vaseData) {
+        if (!vaseUrl) return placeProceduralVase();
 
-        var loaded = await loadImage(vaseBodyUrl);
+        var loaded = await loadImage(vaseUrl);
 
         var naturalW = loaded.naturalWidth || loaded.width;
         var naturalH = loaded.naturalHeight || loaded.height;
@@ -199,63 +167,29 @@ const CompositionEngine = (function () {
 
         var vaseTop = CONTAINER_HEIGHT - 30 - displayH;
 
-        // --- Vase body element (z-index 5, BEHIND flowers) ---
-        var bodyEl = document.createElement('img');
-        bodyEl.className = 'comp-vase';
-        bodyEl.alt = (vaseData && vaseData.title) || 'Museum vase';
-        bodyEl.draggable = false;
-        bodyEl.src = vaseBodyUrl;
+        var imgEl = document.createElement('img');
+        imgEl.className = 'comp-vase';
+        imgEl.alt = (vaseData && vaseData.title) || 'Museum vase';
+        imgEl.draggable = false;
+        imgEl.src = vaseUrl;
 
-        bodyEl.style.position = 'absolute';
-        bodyEl.style.zIndex = '5';
-        bodyEl.style.width = displayW + 'px';
-        bodyEl.style.height = displayH + 'px';
-        bodyEl.style.objectFit = 'contain';
-        bodyEl.style.left = '50%';
-        bodyEl.style.bottom = '30px';
-        bodyEl.style.transform = 'translateX(-50%)';
-        bodyEl.style.filter = 'drop-shadow(0 4px 12px rgba(0,0,0,0.08))';
+        imgEl.style.position = 'absolute';
+        imgEl.style.zIndex = '5';
+        imgEl.style.width = displayW + 'px';
+        imgEl.style.height = displayH + 'px';
+        imgEl.style.objectFit = 'contain';
+        imgEl.style.left = '50%';
+        imgEl.style.bottom = '30px';
+        imgEl.style.transform = 'translateX(-50%)';
+        imgEl.style.filter = 'drop-shadow(0 4px 12px rgba(0,0,0,0.08))';
 
-        container.appendChild(bodyEl);
+        container.appendChild(imgEl);
 
-        // --- Calculate mouth position ---
+        // Estimate mouth position from image dimensions
+        // Museum vase photos: mouth is typically ~10-15% from top
         var mouthX = CONTAINER_WIDTH / 2;
-        var mouthY, mouthWidth;
-
-        if (mouthData && vaseDimensions) {
-            // Scale mouth coordinates from natural image space to display space
-            var scaleX = displayW / vaseDimensions.width;
-            var scaleY = displayH / vaseDimensions.height;
-            var vaseLeft = (CONTAINER_WIDTH - displayW) / 2;
-
-            mouthX = vaseLeft + mouthData.anchorX * scaleX;
-            mouthY = vaseTop + mouthData.rimY * scaleY;
-            mouthWidth = mouthData.mouthWidth * scaleX;
-        } else {
-            // Estimate: mouth is at ~5% from top of vase, ~45% of vase width
-            mouthY = vaseTop + displayH * 0.05;
-            mouthWidth = displayW * 0.45;
-        }
-
-        // --- Lip mask element (z-index 40, ABOVE flowers) ---
-        if (lipMaskUrl) {
-            var lipEl = document.createElement('img');
-            lipEl.className = 'comp-vase-lip';
-            lipEl.draggable = false;
-            lipEl.src = lipMaskUrl;
-
-            lipEl.style.position = 'absolute';
-            lipEl.style.zIndex = '40';
-            lipEl.style.width = displayW + 'px';
-            lipEl.style.height = displayH + 'px';
-            lipEl.style.objectFit = 'contain';
-            lipEl.style.left = '50%';
-            lipEl.style.bottom = '30px';
-            lipEl.style.transform = 'translateX(-50%)';
-            lipEl.style.pointerEvents = 'none';
-
-            container.appendChild(lipEl);
-        }
+        var mouthY = vaseTop + displayH * 0.1;
+        var mouthWidth = displayW * 0.4;
 
         return {
             mouthX: mouthX,
@@ -265,9 +199,7 @@ const CompositionEngine = (function () {
             vaseBottom: CONTAINER_HEIGHT - 30,
             vaseWidth: displayW,
             vaseHeight: displayH,
-            hasPhoto: true,
-            hasLipMask: !!lipMaskUrl,
-            hasProcessedImage: !!(vaseData && vaseData.processedImageDataUrl)
+            hasPhoto: true
         };
     }
 
@@ -322,14 +254,12 @@ const CompositionEngine = (function () {
             vaseBottom: CONTAINER_HEIGHT - 30,
             vaseWidth: 300,
             vaseHeight: 500,
-            hasPhoto: false,
-            hasLipMask: false,
-            hasProcessedImage: false
+            hasPhoto: false
         };
     }
 
     // -----------------------------------------------------------------
-    // Layer: Foliage (z-index 8, multiply blend)
+    // Layer: Foliage (z-index 8)
     // -----------------------------------------------------------------
 
     function placeFoliage(vaseInfo, bouquetRecipe, flowerImages) {
@@ -367,15 +297,10 @@ const CompositionEngine = (function () {
                 el.style.opacity = '0.7';
                 el.style.width = size + 'px';
                 el.style.height = size + 'px';
-                el.style.objectFit = 'cover';
+                el.style.objectFit = 'contain';
                 el.style.left = (fx - size / 2) + 'px';
                 el.style.top = (fy - size / 2) + 'px';
-                // No border-radius: 50% — natural shape
-                el.style.mixBlendMode = 'multiply';
                 el.style.transform = 'rotate(' + rand(-30, 30) + 'deg)';
-                el.style.filter = 'saturate(1.1) brightness(1.05)';
-                el.style.WebkitMaskImage = 'radial-gradient(ellipse at center, black 30%, rgba(0,0,0,0.5) 55%, transparent 78%)';
-                el.style.maskImage = 'radial-gradient(ellipse at center, black 30%, rgba(0,0,0,0.5) 55%, transparent 78%)';
 
                 el.onerror = function () {
                     this.style.display = 'none';
@@ -422,7 +347,7 @@ const CompositionEngine = (function () {
     }
 
     // -----------------------------------------------------------------
-    // Layer: Flowers (z-index 15-35, multiply blend, soft masks)
+    // Layer: Flowers (z-index 15-35, SVG with transparent backgrounds)
     // -----------------------------------------------------------------
 
     function placeFlowers(vaseInfo, flowers, flowerImages, bouquetRecipe) {
@@ -552,58 +477,28 @@ const CompositionEngine = (function () {
     }
 
     /**
-     * Place a real flower photo with multiply blend mode and soft radial mask.
-     * No border-radius: 50% — the mask handles edge softness.
+     * Place a flower SVG image (transparent background — no blend mode needed).
      */
     function placeFlowerPhoto(imgUrl, name, pos, size, index, isPrimary) {
         var el = document.createElement('img');
         el.alt = name;
         el.className = 'comp-flower';
         el.draggable = false;
-        el.crossOrigin = 'anonymous';
 
         el.style.position = 'absolute';
         el.style.left = (pos.x - size / 2) + 'px';
         el.style.top = (pos.y - size / 2) + 'px';
-
-        // Slight aspect ratio variation for natural feel
-        var wScale = rand(0.9, 1.1);
-        var hScale = rand(0.9, 1.1);
-        el.style.width = Math.round(size * wScale) + 'px';
-        el.style.height = Math.round(size * hScale) + 'px';
-        el.style.objectFit = 'cover';
-
-        // NO border-radius: 50% — natural shape
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.objectFit = 'contain';
         el.style.zIndex = String(15 + index);
 
-        // Mix blend mode: multiply makes white/light backgrounds disappear
-        el.style.mixBlendMode = 'multiply';
-
-        // Softer, larger radial mask for natural edges
-        var maskGrad = isPrimary
-            ? 'radial-gradient(ellipse at center, black 35%, rgba(0,0,0,0.7) 55%, transparent 78%)'
-            : 'radial-gradient(ellipse at center, black 30%, rgba(0,0,0,0.6) 50%, transparent 75%)';
-        el.style.WebkitMaskImage = maskGrad;
-        el.style.maskImage = maskGrad;
-
-        // Compensate for multiply darkening
-        el.style.filter = 'saturate(1.15) brightness(1.05)';
-
-        el.style.transform = 'rotate(' + rand(-12, 12) + 'deg) scale(' + rand(0.95, 1.08) + ')';
+        el.style.transform = 'rotate(' + rand(-15, 15) + 'deg) scale(' + rand(0.92, 1.08) + ')';
+        el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
 
         // Staggered fade-in
         el.style.opacity = '0';
-        el.style.transition = 'opacity 0.6s ease ' + (index * 0.08) + 's';
-
-        // CORS fallback: if crossOrigin load fails, retry without it
-        el.onerror = function () {
-            if (this.crossOrigin) {
-                this.crossOrigin = '';
-                this.src = imgUrl;
-            } else {
-                this.style.display = 'none';
-            }
-        };
+        el.style.transition = 'opacity 0.5s ease ' + (index * 0.08) + 's';
 
         el.src = imgUrl;
         container.appendChild(el);

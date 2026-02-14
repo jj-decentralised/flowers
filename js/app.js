@@ -87,34 +87,16 @@ const App = (function () {
             var vaseData = await getVaseData();
             console.log('[App] Vase data:', vaseData);
 
-            // PHASE 1b: Process vase image (background removal, mouth detection, lip mask)
-            if (vaseData && vaseData.imageUrl && typeof ImageProcessor !== 'undefined' &&
-                typeof ImageProcessor.processVaseImage === 'function') {
-                try {
-                    UI.updateLoadingText('Preparing the vessel\u2026');
-                    var processed = await ImageProcessor.processVaseImage(vaseData.imageUrl);
-                    if (processed) {
-                        vaseData.processedImageDataUrl = processed.processedImageDataUrl;
-                        vaseData.lipMaskDataUrl = processed.lipMaskDataUrl;
-                        vaseData.mouth = processed.mouth;
-                        vaseData.dimensions = processed.dimensions;
-                        console.log('[App] Vase image processed — mouth detected at', processed.mouth);
-                    }
-                } catch (procErr) {
-                    console.warn('[App] Vase image processing failed (using raw image):', procErr.message);
-                }
-            }
-
             // PHASE 2: Symbolism Processing
             UI.updateLoadingText('Selecting the blooms\u2026');
             var bouquetRecipe = composeBouquet(weather, celestialProfile);
             bouquetRecipe = normalizeBouquetRecipe(bouquetRecipe);
             console.log('[App] Bouquet recipe:', bouquetRecipe);
 
-            // PHASE 3: Fetch Flower Photographs
-            UI.updateLoadingText('Gathering flower photographs\u2026');
-            var flowerImageMap = await fetchFlowerImages(bouquetRecipe);
-            console.log('[App] Flower images:', Object.keys(flowerImageMap).length, 'loaded');
+            // PHASE 3: Generate Flower SVGs
+            UI.updateLoadingText('Painting the blooms\u2026');
+            var flowerImageMap = generateFlowerSVGs(bouquetRecipe);
+            console.log('[App] Flower SVGs generated:', Object.keys(flowerImageMap).length);
 
             // PHASE 4: Composition (pass flower images to engine)
             UI.updateLoadingText('Arranging the bouquet\u2026');
@@ -254,25 +236,24 @@ const App = (function () {
         return getFallbackBouquet(weather, celestialProfile);
     }
 
-    async function fetchFlowerImages(bouquetRecipe) {
-        if (typeof FlowerImageApi === 'undefined' || typeof FlowerImageApi.getMultipleFlowerImages !== 'function') {
-            console.warn('[App] FlowerImageApi not available');
+    function generateFlowerSVGs(bouquetRecipe) {
+        if (typeof FlowerGenerator === 'undefined') {
+            console.warn('[App] FlowerGenerator not available');
             return {};
         }
         try {
             var flowers = bouquetRecipe.flowers || [];
-            var names = flowers.map(function (f) { return f.name || 'Rose'; });
-            // Add foliage
-            (bouquetRecipe.foliage || []).forEach(function (f) {
-                var fl = f.flower || f;
-                names.push(fl.common || fl.name || 'Fern');
-            });
-            // Deduplicate
-            var unique = []; var seen = {};
-            names.forEach(function (n) { if (!seen[n]) { seen[n] = true; unique.push(n); } });
-            return await FlowerImageApi.getMultipleFlowerImages(unique);
+            var result = FlowerGenerator.generateFlowerImages(flowers);
+            // Also generate foliage
+            var foliageResult = FlowerGenerator.generateFoliageImages(bouquetRecipe.foliage || []);
+            for (var key in foliageResult) {
+                if (foliageResult.hasOwnProperty(key)) {
+                    result[key] = foliageResult[key];
+                }
+            }
+            return result;
         } catch (e) {
-            console.warn('[App] Flower image fetch failed:', e.message);
+            console.warn('[App] Flower SVG generation failed:', e.message);
             return {};
         }
     }
