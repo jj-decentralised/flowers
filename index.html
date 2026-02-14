@@ -3,111 +3,370 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Living Vases</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>For You</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
 
-  <!-- Astronomy Engine from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine/astronomy.browser.min.js"></script>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  <!-- html2canvas for image export -->
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    html {
+      font-size: 18px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: 'EB Garamond', 'Georgia', serif;
+      background-color: #faf8f5;
+      color: #2c2420;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ---------- Floating Petals ---------- */
+
+    .petal {
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+
+    /* ---------- Main Layout ---------- */
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 6rem 2rem 5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ---------- Bouquet ---------- */
+
+    .bouquet {
+      width: 260px;
+      height: 320px;
+      margin-bottom: 3rem;
+      opacity: 0;
+      animation: fadeIn 1.5s ease 0.3s forwards;
+    }
+
+    .bouquet svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ---------- Salutation ---------- */
+
+    .salutation {
+      font-family: 'Cormorant Garamond', 'Georgia', serif;
+      font-size: 1.6rem;
+      font-weight: 300;
+      font-style: italic;
+      color: #8b6f5e;
+      margin-bottom: 2.5rem;
+      opacity: 0;
+      animation: fadeIn 1s ease 0.8s forwards;
+    }
+
+    /* ---------- Letter ---------- */
+
+    .letter {
+      width: 100%;
+      line-height: 1.85;
+      font-size: 1.05rem;
+      color: #3d3330;
+      letter-spacing: 0.01em;
+    }
+
+    .letter p {
+      margin-bottom: 1.4rem;
+      opacity: 0;
+      animation: fadeIn 1s ease forwards;
+    }
+
+    .letter p:nth-child(1) { animation-delay: 1.1s; }
+    .letter p:nth-child(2) { animation-delay: 1.5s; }
+    .letter p:nth-child(3) { animation-delay: 1.9s; }
+    .letter p:nth-child(4) { animation-delay: 2.3s; }
+    .letter p:nth-child(5) { animation-delay: 2.7s; }
+
+    /* ---------- Closing ---------- */
+
+    .closing {
+      margin-top: 2rem;
+      text-align: right;
+      width: 100%;
+      opacity: 0;
+      animation: fadeIn 1s ease 3.2s forwards;
+    }
+
+    .closing .forever {
+      font-family: 'Cormorant Garamond', 'Georgia', serif;
+      font-style: italic;
+      font-size: 1.25rem;
+      font-weight: 300;
+      color: #8b6f5e;
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+
+    .closing .name {
+      font-family: 'Cormorant Garamond', 'Georgia', serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: #6b5549;
+      letter-spacing: 0.03em;
+    }
+
+    /* ---------- Date ---------- */
+
+    .date-line {
+      margin-top: 4rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: #b8a99e;
+      opacity: 0;
+      animation: fadeIn 1s ease 3.6s forwards;
+    }
+
+    /* ---------- Animations ---------- */
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(3deg); }
+      100% { transform: translateY(0) rotate(0deg); }
+    }
+
+    .bouquet {
+      animation: fadeIn 1.5s ease 0.3s forwards, float 6s ease-in-out 2s infinite;
+    }
+
+    /* ---------- Responsive ---------- */
+
+    @media (max-width: 540px) {
+      .page {
+        padding: 4rem 1.5rem 3rem;
+      }
+      .bouquet {
+        width: 200px;
+        height: 250px;
+      }
+      .salutation {
+        font-size: 1.35rem;
+      }
+      html {
+        font-size: 16px;
+      }
+    }
+  </style>
 </head>
 <body>
 
-  <!-- Loading overlay -->
-  <div id="loading-overlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-    <p id="loading-message">Gathering flowers...</p>
-  </div>
+  <!-- Floating petals container -->
+  <div id="petals-container"></div>
 
-  <div id="app">
+  <main class="page">
 
-    <!-- The Arrangement (top) -->
-    <section id="canvas-section">
-      <div id="arrangement-container"></div>
-    </section>
+    <!-- Hand-drawn bouquet -->
+    <div class="bouquet">
+      <svg viewBox="0 0 260 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Stems -->
+        <path d="M 130 195 Q 125 230 120 280 Q 118 300 115 315" stroke="#7a9b6a" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M 130 195 Q 135 235 140 280 Q 142 300 145 315" stroke="#7a9b6a" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M 130 195 Q 128 240 130 290 Q 130 305 130 315" stroke="#7a9b6a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 130 195 Q 115 225 105 270 Q 100 290 95 315" stroke="#7a9b6a" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+        <path d="M 130 195 Q 145 225 155 270 Q 160 290 165 315" stroke="#7a9b6a" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
 
-    <!-- Thin separator -->
-    <div class="separator"></div>
+        <!-- Leaves -->
+        <path d="M 122 240 Q 100 225 85 235 Q 100 240 122 240" fill="#8aaa7a" opacity="0.5"/>
+        <path d="M 138 250 Q 160 235 175 245 Q 160 250 138 250" fill="#8aaa7a" opacity="0.5"/>
+        <path d="M 125 265 Q 108 255 95 262 Q 108 268 125 265" fill="#8aaa7a" opacity="0.4"/>
 
-    <!-- Bird of the Day -->
-    <section id="bird-section" class="content-section">
-      <p class="section-label">Today's bird</p>
-      <h2 id="bird-name"></h2>
-      <p id="bird-scientific" class="scientific-name"></p>
-      <p id="bird-description" class="bird-note"></p>
-      <button id="bird-play-btn" class="play-btn" aria-label="Play bird song">
-        <span class="play-icon"></span>
-      </button>
-    </section>
+        <!-- Center rose (main) -->
+        <ellipse cx="130" cy="140" rx="22" ry="18" fill="#d4917e" opacity="0.3"/>
+        <path d="M 118 145 Q 115 130 125 122 Q 130 118 135 122 Q 145 130 142 145 Q 138 148 130 150 Q 122 148 118 145" fill="#d4917e" opacity="0.5" stroke="#c47d6a" stroke-width="0.6"/>
+        <path d="M 122 142 Q 120 133 128 127 Q 132 125 136 128 Q 140 133 138 142 Q 135 145 130 146 Q 125 145 122 142" fill="#d4917e" opacity="0.65" stroke="#c47d6a" stroke-width="0.5"/>
+        <path d="M 126 139 Q 125 134 129 131 Q 131 130 133 131 Q 136 134 135 139 Q 133 141 130 141 Q 127 141 126 139" fill="#c8806c" opacity="0.7" stroke="#b8705c" stroke-width="0.4"/>
+        <ellipse cx="130" cy="136" rx="3" ry="2.5" fill="#b8705c" opacity="0.6"/>
 
-    <!-- Thin separator -->
-    <div class="separator"></div>
+        <!-- Left peony -->
+        <ellipse cx="95" cy="135" rx="25" ry="20" fill="#d4a0a0" opacity="0.2"/>
+        <path d="M 82 140 Q 78 125 88 118 Q 95 114 102 118 Q 112 125 108 140 Q 104 145 95 147 Q 86 145 82 140" fill="#d4a0a0" opacity="0.45" stroke="#c49090" stroke-width="0.5"/>
+        <path d="M 86 137 Q 84 128 90 123 Q 95 120 100 123 Q 106 128 104 137 Q 101 140 95 141 Q 89 140 86 137" fill="#c89090" opacity="0.55" stroke="#b88080" stroke-width="0.4"/>
+        <ellipse cx="95" cy="132" rx="5" ry="4" fill="#c08585" opacity="0.5"/>
 
-    <!-- Love Poem -->
-    <section id="poem-section" class="content-section">
-      <blockquote id="poem-lines"></blockquote>
-      <cite id="poem-attribution"></cite>
-    </section>
+        <!-- Right peony -->
+        <ellipse cx="165" cy="130" rx="23" ry="19" fill="#c9a0a8" opacity="0.2"/>
+        <path d="M 153 135 Q 150 120 158 114 Q 165 110 172 114 Q 180 120 177 135 Q 173 140 165 142 Q 157 140 153 135" fill="#c9a0a8" opacity="0.45" stroke="#b99098" stroke-width="0.5"/>
+        <path d="M 157 132 Q 155 124 161 119 Q 165 117 169 119 Q 175 124 173 132 Q 170 135 165 136 Q 160 135 157 132" fill="#c09098" opacity="0.55" stroke="#a88088" stroke-width="0.4"/>
+        <ellipse cx="165" cy="127" rx="4.5" ry="3.5" fill="#b88590" opacity="0.5"/>
 
-    <!-- Thin separator -->
-    <div class="separator"></div>
+        <!-- Small flowers -->
+        <!-- Top left small bloom -->
+        <circle cx="78" cy="115" r="10" fill="#ddb8a0" opacity="0.25"/>
+        <path d="M 73 115 Q 72 108 78 105 Q 82 103 84 106 Q 86 110 83 115 Q 81 117 78 117 Q 75 117 73 115" fill="#ddb8a0" opacity="0.5" stroke="#cca890" stroke-width="0.4"/>
+        <circle cx="78" cy="112" r="2" fill="#c8a088" opacity="0.5"/>
 
-    <!-- Arrangement Details (collapsed by default) -->
-    <section id="details-section" class="content-section">
-      <button id="details-toggle" class="toggle-btn">Details</button>
-      <div id="details-body" class="details-body hidden">
+        <!-- Top right small bloom -->
+        <circle cx="180" cy="108" r="11" fill="#c8b0c0" opacity="0.25"/>
+        <path d="M 174 109 Q 173 101 179 98 Q 183 96 186 99 Q 189 103 186 109 Q 184 112 180 112 Q 176 112 174 109" fill="#c8b0c0" opacity="0.5" stroke="#b8a0b0" stroke-width="0.4"/>
+        <circle cx="180" cy="106" r="2" fill="#b098a8" opacity="0.5"/>
 
-        <!-- Birthday Input -->
-        <div class="detail-group">
-          <label for="birthday-input" class="detail-label">A lover's birthday</label>
-          <input type="date" id="birthday-input" value="1995-11-04" />
-        </div>
+        <!-- Top center buds -->
+        <ellipse cx="115" cy="108" rx="7" ry="9" fill="#d4a090" opacity="0.35" transform="rotate(-15 115 108)"/>
+        <path d="M 112 110 Q 111 104 115 100 Q 117 99 119 101 Q 121 105 119 110 Q 117 112 115 112 Q 113 112 112 110" fill="#d4a090" opacity="0.55" stroke="#c49080" stroke-width="0.3"/>
 
-        <div class="detail-group">
-          <p class="detail-label">Weather in Singapore</p>
-          <p id="weather-details" class="detail-value">--</p>
-        </div>
+        <ellipse cx="148" cy="105" rx="8" ry="10" fill="#d0a8a8" opacity="0.3" transform="rotate(12 148 105)"/>
+        <path d="M 145 107 Q 144 100 148 97 Q 150 95 152 97 Q 155 101 153 107 Q 151 109 148 110 Q 146 109 145 107" fill="#d0a8a8" opacity="0.5" stroke="#c09898" stroke-width="0.3"/>
 
-        <div class="detail-group">
-          <p class="detail-label">Celestial portrait</p>
-          <p id="astronomy-details" class="detail-value">--</p>
-        </div>
+        <!-- Tiny filler buds -->
+        <circle cx="70" cy="140" r="5" fill="#d4b8a0" opacity="0.3"/>
+        <circle cx="190" cy="135" r="5" fill="#c8b0b8" opacity="0.3"/>
+        <circle cx="105" cy="100" r="4" fill="#d8c0a8" opacity="0.25"/>
+        <circle cx="155" cy="98" r="4" fill="#d0b8c0" opacity="0.25"/>
+        <circle cx="130" cy="98" r="3.5" fill="#c8a898" opacity="0.25"/>
 
-        <div class="detail-group">
-          <p class="detail-label">The vessel</p>
-          <p id="museum-details" class="detail-value">--</p>
-        </div>
+        <!-- Accent greenery wisps -->
+        <path d="M 75 145 Q 60 130 55 115" stroke="#8aaa7a" stroke-width="1" fill="none" opacity="0.4" stroke-linecap="round"/>
+        <path d="M 185 140 Q 200 125 205 110" stroke="#8aaa7a" stroke-width="1" fill="none" opacity="0.4" stroke-linecap="round"/>
+        <path d="M 90 110 Q 78 95 72 85" stroke="#8aaa7a" stroke-width="0.8" fill="none" opacity="0.3" stroke-linecap="round"/>
+        <path d="M 170 105 Q 182 90 188 80" stroke="#8aaa7a" stroke-width="0.8" fill="none" opacity="0.3" stroke-linecap="round"/>
 
-        <div class="detail-group">
-          <p class="detail-label">The bouquet</p>
-          <ul id="flora-list"></ul>
-        </div>
-
-        <button id="generate-btn" class="btn-generate">Arrange again</button>
-        <button id="download-btn" class="btn-download">Save as image</button>
-      </div>
-    </section>
-
-    <!-- Receipt (hidden until generated) -->
-    <div id="receipt" class="receipt hidden">
-      <div id="receipt-content"></div>
+        <!-- Tiny leaf details on wisps -->
+        <path d="M 60 120 Q 55 115 58 112 Q 60 115 60 120" fill="#8aaa7a" opacity="0.35"/>
+        <path d="M 200 115 Q 205 110 202 107 Q 200 110 200 115" fill="#8aaa7a" opacity="0.35"/>
+      </svg>
     </div>
 
-  </div>
+    <!-- Salutation -->
+    <p class="salutation">My Love,</p>
 
-  <!-- Application JS — loaded in dependency order -->
-  <script src="js/floraDatabase.js"></script>
-  <script src="js/museumApi.js"></script>
-  <script src="js/weatherApi.js"></script>
-  <script src="js/astronomyEngine.js"></script>
-  <script src="js/symbolismEngine.js"></script>
-  <script src="js/imageProcessor.js"></script>
-  <script src="js/flowerGenerator.js"></script>
-  <script src="js/compositionEngine.js"></script>
-  <script src="js/birdSongs.js"></script>
-  <script src="js/lovePoems.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
+    <!-- The letter -->
+    <div class="letter">
+      <p>
+        There are mornings when the light comes through the window just right,
+        and I think of you before I think of anything else. Not with urgency,
+        but with the quiet certainty that you are the best part of every day
+        I have been given.
+      </p>
+
+      <p>
+        I don't always say it well enough. The words I have feel small next to
+        what I mean. But I want you to know: the way you laugh when you're
+        caught off guard, the way you hold my hand a little tighter when we're
+        walking somewhere new, the way you make even the ordinary feel like
+        something worth remembering &mdash; I notice. I always notice.
+      </p>
+
+      <p>
+        You make me want to be softer. Braver. More honest with the things
+        I carry. You make the world feel less like something to survive
+        and more like something to be grateful for.
+      </p>
+
+      <p>
+        I don't need a special day to tell you this, but I'll take one anyway:
+        thank you for choosing me. Thank you for staying. Thank you for being
+        exactly who you are.
+      </p>
+
+      <p>
+        I love you. Completely, quietly, and without condition.
+      </p>
+    </div>
+
+    <!-- Closing -->
+    <div class="closing">
+      <span class="forever">Forever yours,</span>
+      <span class="name">J</span>
+    </div>
+
+    <!-- Date -->
+    <p class="date-line">February 14, 2026</p>
+
+  </main>
+
+  <script>
+    // --- Floating petals ---
+    (function () {
+      var container = document.getElementById('petals-container');
+      var petalColors = ['#d4917e', '#d4a0a0', '#c9a0a8', '#ddb8a0', '#c8b0c0'];
+
+      function createPetal() {
+        var petal = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        petal.classList.add('petal');
+        petal.setAttribute('width', '14');
+        petal.setAttribute('height', '14');
+        petal.setAttribute('viewBox', '0 0 14 14');
+
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M 7 0 Q 12 4 12 8 Q 12 12 7 14 Q 2 12 2 8 Q 2 4 7 0');
+        path.setAttribute('fill', petalColors[Math.floor(Math.random() * petalColors.length)]);
+        path.setAttribute('opacity', '0.6');
+        petal.appendChild(path);
+
+        var size = 8 + Math.random() * 10;
+        petal.style.width = size + 'px';
+        petal.style.height = size + 'px';
+        petal.style.left = Math.random() * 100 + 'vw';
+        petal.style.top = '-20px';
+
+        container.appendChild(petal);
+
+        var duration = 8000 + Math.random() * 7000;
+        var swayAmount = 60 + Math.random() * 80;
+        var startRotation = Math.random() * 360;
+        var startTime = performance.now();
+
+        function animatePetal(now) {
+          var elapsed = now - startTime;
+          var progress = elapsed / duration;
+
+          if (progress > 1) {
+            container.removeChild(petal);
+            return;
+          }
+
+          var y = -20 + progress * (window.innerHeight + 40);
+          var x = Math.sin(progress * Math.PI * 2.5) * swayAmount;
+          var rotation = startRotation + progress * 180;
+          var opacity = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) / 0.15 : 1;
+          opacity *= 0.4;
+
+          petal.style.opacity = opacity;
+          petal.style.transform = 'translate(' + x + 'px, ' + y + 'px) rotate(' + rotation + 'deg)';
+
+          requestAnimationFrame(animatePetal);
+        }
+
+        requestAnimationFrame(animatePetal);
+      }
+
+      // Spawn petals gently
+      function spawnLoop() {
+        createPetal();
+        setTimeout(spawnLoop, 2000 + Math.random() * 3000);
+      }
+
+      // Start after a short delay
+      setTimeout(spawnLoop, 1500);
+    })();
+  </script>
+
 </body>
 </html>
