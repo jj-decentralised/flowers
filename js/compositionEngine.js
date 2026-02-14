@@ -187,6 +187,16 @@ const CompositionEngine = (function () {
             return;
         }
 
+        // Plain white aesthetic — override all atmospheric backgrounds
+        var bgRect = new fabric.Rect({
+            left: 0, top: 0,
+            width: CANVAS_WIDTH, height: CANVAS_HEIGHT,
+            fill: '#ffffff',
+            selectable: false, evented: false
+        });
+        canvas.add(bgRect);
+        return { period: 'white', topColor: '#ffffff', bottomColor: '#ffffff' };
+
         var sg = getSingaporeTime(timeOverride);
         var h  = sg.fractionalHour;
 
@@ -1035,12 +1045,122 @@ const CompositionEngine = (function () {
     }
 
     // -----------------------------------------------------------------
-    // Procedural Flower Generation
+    // Procedural Flower Generation  (Realistic Bezier-based)
     // -----------------------------------------------------------------
 
     /**
-     * Create a beautiful procedural flower from Fabric.js shapes.
-     * Guaranteed fallback that always produces something visually appealing.
+     * Build a single bezier petal path string.
+     * The petal starts at (0,0), curves outward to a tip, and returns.
+     * @param {number} length  - petal length (tip distance from base)
+     * @param {number} width   - petal maximum width
+     * @param {number} tipSharpness - 0 = round tip, 1 = very pointed
+     * @param {number} curvature    - lateral bulge factor (0.3 - 0.7 typical)
+     * @returns {string} SVG path data
+     */
+    function _petalPath(length, width, tipSharpness, curvature) {
+        var hw = width / 2;
+        var cp1y = length * curvature;
+        var cp2y = length * (1.0 - tipSharpness * 0.25);
+        var tipNarrow = hw * (1.0 - tipSharpness) * 0.3;
+        return 'M 0 0' +
+               ' C ' + hw + ' ' + cp1y + ' ' + (hw * 0.9) + ' ' + cp2y + ' ' + tipNarrow + ' ' + length +
+               ' C ' + (-hw * 0.9) + ' ' + cp2y + ' ' + (-hw) + ' ' + cp1y + ' 0 0 Z';
+    }
+
+    /**
+     * Build a heart-shaped petal path (for blossoms / cherry blossoms).
+     * Two lobes curve out from the base to a notched tip.
+     */
+    function _heartPetalPath(length, width) {
+        var hw = width / 2;
+        var notch = length * 0.08;
+        return 'M 0 0' +
+               ' C ' + (hw * 0.8) + ' ' + (length * 0.2) +
+                 ' ' + (hw * 1.15) + ' ' + (length * 0.55) +
+                 ' ' + (hw * 0.5) + ' ' + length +
+               ' L 0 ' + (length - notch) +
+               ' L ' + (-hw * 0.5) + ' ' + length +
+               ' C ' + (-hw * 1.15) + ' ' + (length * 0.55) +
+                 ' ' + (-hw * 0.8) + ' ' + (length * 0.2) +
+                 ' 0 0 Z';
+    }
+
+    /**
+     * Build a pointed / angular petal path (for dahlias).
+     */
+    function _angularPetalPath(length, width) {
+        var hw = width / 2;
+        return 'M 0 0' +
+               ' C ' + (hw * 0.45) + ' ' + (length * 0.15) +
+                 ' ' + (hw * 0.95) + ' ' + (length * 0.3) +
+                 ' ' + (hw * 0.7) + ' ' + (length * 0.55) +
+               ' L 0 ' + length +
+               ' L ' + (-hw * 0.7) + ' ' + (length * 0.55) +
+               ' C ' + (-hw * 0.95) + ' ' + (length * 0.3) +
+                 ' ' + (-hw * 0.45) + ' ' + (length * 0.15) +
+                 ' 0 0 Z';
+    }
+
+    /**
+     * Build a cup-shaped petal path (for tulips).
+     */
+    function _cupPetalPath(length, width) {
+        var hw = width / 2;
+        return 'M 0 0' +
+               ' C ' + (hw * 0.2) + ' ' + (length * 0.1) +
+                 ' ' + (hw * 1.1) + ' ' + (length * 0.45) +
+                 ' ' + (hw * 0.85) + ' ' + (length * 0.8) +
+               ' Q ' + (hw * 0.5) + ' ' + (length * 1.05) + ' 0 ' + length +
+               ' Q ' + (-hw * 0.5) + ' ' + (length * 1.05) +
+                 ' ' + (-hw * 0.85) + ' ' + (length * 0.8) +
+               ' C ' + (-hw * 1.1) + ' ' + (length * 0.45) +
+                 ' ' + (-hw * 0.2) + ' ' + (length * 0.1) +
+                 ' 0 0 Z';
+    }
+
+    /**
+     * Build a tapered daisy-style petal: wide at base, narrow pointed tip.
+     */
+    function _taperedPetalPath(length, width) {
+        var hw = width / 2;
+        return 'M 0 0' +
+               ' C ' + (hw * 0.9) + ' ' + (length * 0.08) +
+                 ' ' + (hw * 0.75) + ' ' + (length * 0.35) +
+                 ' ' + (hw * 0.2) + ' ' + (length * 0.75) +
+               ' Q ' + (hw * 0.05) + ' ' + (length * 0.95) + ' 0 ' + length +
+               ' Q ' + (-hw * 0.05) + ' ' + (length * 0.95) +
+                 ' ' + (-hw * 0.2) + ' ' + (length * 0.75) +
+               ' C ' + (-hw * 0.75) + ' ' + (length * 0.35) +
+                 ' ' + (-hw * 0.9) + ' ' + (length * 0.08) +
+                 ' 0 0 Z';
+    }
+
+    /**
+     * Place a single fabric.Path petal at a given angle and distance from the origin.
+     */
+    function _placePetal(pathData, angle, dist, fillColor, opacity, extraRotDeg) {
+        var px = Math.cos(angle) * dist;
+        var py = Math.sin(angle) * dist;
+        var rotDeg = angle * (180 / Math.PI) + 90 + (extraRotDeg || 0);
+
+        return new fabric.Path(pathData, {
+            left: px,
+            top: py,
+            originX: 'center',
+            originY: 'top',
+            fill: fillColor,
+            stroke: darken(fillColor, 0.08),
+            strokeWidth: 0.3,
+            opacity: opacity,
+            angle: rotDeg,
+            selectable: false,
+            evented: false
+        });
+    }
+
+    /**
+     * Create a realistic procedural flower from Fabric.js bezier paths.
+     * Each petal is a fabric.Path with cubic bezier curves for natural shapes.
      *
      * @param {Array} colors - array of hex colour strings [primary, secondary, accent...]
      * @param {number} size - overall diameter in pixels
@@ -1056,8 +1176,12 @@ const CompositionEngine = (function () {
         var secondaryColor = colors[1] || lighten(primaryColor, 0.2);
         var accentColor    = colors[2] || darken(primaryColor, 0.15);
 
-        // Choose a random flower type for variety
-        var flowerType = randInt(0, 3);
+        // Deterministic flower type selection based on colour hash for consistency.
+        var colorHash = 0;
+        for (var ci = 0; ci < primaryColor.length; ci++) {
+            colorHash = ((colorHash << 5) - colorHash + primaryColor.charCodeAt(ci)) | 0;
+        }
+        var flowerType = ((colorHash % 6) + 6) % 6; // 0-5, always positive
         var parts = [];
 
         switch (flowerType) {
@@ -1073,6 +1197,12 @@ const CompositionEngine = (function () {
             case 3:
                 parts = _createSimpleBlossom(primaryColor, secondaryColor, accentColor, size);
                 break;
+            case 4:
+                parts = _createTulipLike(primaryColor, secondaryColor, accentColor, size);
+                break;
+            case 5:
+                parts = _createWildflowerCluster(primaryColor, secondaryColor, accentColor, size);
+                break;
             default:
                 parts = _createRoseLike(primaryColor, secondaryColor, accentColor, size);
         }
@@ -1086,92 +1216,94 @@ const CompositionEngine = (function () {
     }
 
     /**
-     * Rose-like flower: concentric circles of petals with a spiral feel.
+     * Rose-like flower: overlapping curved petals with realistic curvature.
+     * Each petal is a fabric.Path with bezier curves arranged in a spiral.
+     * Inner petals are smaller and more tightly packed with lighter colour.
      */
     function _createRoseLike(primary, secondary, accent, size) {
         var parts = [];
         var r = size / 2;
 
-        // Outer layer: 7-9 large petals
-        var outerCount = randInt(7, 9);
-        for (var i = 0; i < outerCount; i++) {
-            var angle = (i / outerCount) * Math.PI * 2 + rand(-0.1, 0.1);
-            var px = Math.cos(angle) * r * 0.45;
-            var py = Math.sin(angle) * r * 0.45;
-            var petalColor = i % 2 === 0 ? primary : secondary;
-
-            var petal = new fabric.Ellipse({
-                rx: r * 0.38,
-                ry: r * 0.55,
-                left: px,
-                top: py,
-                originX: 'center',
-                originY: 'center',
-                fill: petalColor,
-                opacity: rand(0.8, 0.95),
-                angle: angle * (180 / Math.PI) + 90 + rand(-8, 8),
-                selectable: false,
-                evented: false
-            });
-            parts.push(petal);
-        }
-
-        // Middle layer: 5-6 smaller petals
-        var midCount = randInt(5, 6);
-        for (var j = 0; j < midCount; j++) {
-            var angle = (j / midCount) * Math.PI * 2 + rand(-0.15, 0.15) + 0.3;
-            var px = Math.cos(angle) * r * 0.2;
-            var py = Math.sin(angle) * r * 0.2;
-            var midColor = lerpColor(primary, secondary, rand(0.3, 0.7));
-
-            var midPetal = new fabric.Ellipse({
-                rx: r * 0.28,
-                ry: r * 0.4,
-                left: px,
-                top: py,
-                originX: 'center',
-                originY: 'center',
-                fill: midColor,
-                opacity: rand(0.85, 1),
-                angle: angle * (180 / Math.PI) + 90 + rand(-10, 10),
-                selectable: false,
-                evented: false
-            });
-            parts.push(midPetal);
-        }
-
-        // Inner swirl: tight cluster of small petals
-        var innerCount = randInt(3, 5);
-        for (var k = 0; k < innerCount; k++) {
-            var angle = (k / innerCount) * Math.PI * 2 + rand(-0.2, 0.2);
-            var px = Math.cos(angle) * r * 0.08;
-            var py = Math.sin(angle) * r * 0.08;
-            var innerColor = lerpColor(secondary, lighten(primary, 0.15), rand(0, 1));
-
-            var innerPetal = new fabric.Ellipse({
-                rx: r * 0.18,
-                ry: r * 0.28,
-                left: px,
-                top: py,
-                originX: 'center',
-                originY: 'center',
-                fill: innerColor,
-                opacity: rand(0.9, 1),
-                angle: angle * (180 / Math.PI) + 90 + rand(-15, 15),
-                selectable: false,
-                evented: false
-            });
-            parts.push(innerPetal);
-        }
-
-        // Centre dot
-        var center = new fabric.Circle({
-            radius: r * 0.08,
+        // Soft shadow base for depth
+        var shadow = new fabric.Circle({
+            radius: r * 0.7,
             left: 0,
             top: 0,
             originX: 'center',
             originY: 'center',
-            fill: darken(accent, 0.2),
+            fill: darken(primary, 0.35),
+            opacity: 0.12,
+            selectable: false,
+            evented: false
+        });
+        parts.push(shadow);
+
+        // Outer ring: 8-10 large petals with spiral offset
+        var outerCount = randInt(8, 10);
+        var spiralOffset = rand(0, Math.PI * 2);
+        for (var i = 0; i < outerCount; i++) {
+            var angle = spiralOffset + (i / outerCount) * Math.PI * 2 + rand(-0.08, 0.08);
+            var t = (i % 3) / 3;
+            var petalColor = lerpColor(primary, darken(primary, 0.1), t);
+            petalColor = lerpColor(petalColor, secondary, rand(0, 0.15));
+
+            var petalLen = r * rand(0.75, 0.9);
+            var petalW   = r * rand(0.48, 0.58);
+            var pathStr  = _petalPath(petalLen, petalW, 0.3, rand(0.35, 0.5));
+            var petal    = _placePetal(pathStr, angle, r * 0.15, petalColor, rand(0.82, 0.94), rand(-5, 5));
+            parts.push(petal);
+        }
+
+        // Middle ring: 6-7 petals, rotated half-step from outer
+        var midCount = randInt(6, 7);
+        var midOffset = spiralOffset + Math.PI / outerCount;
+        for (var j = 0; j < midCount; j++) {
+            var mAngle = midOffset + (j / midCount) * Math.PI * 2 + rand(-0.12, 0.12);
+            var midColor = lerpColor(primary, lighten(primary, 0.12), rand(0.1, 0.4));
+            midColor = lerpColor(midColor, secondary, rand(0, 0.2));
+
+            var mPetalLen = r * rand(0.5, 0.65);
+            var mPetalW   = r * rand(0.38, 0.48);
+            var mPathStr  = _petalPath(mPetalLen, mPetalW, 0.25, rand(0.4, 0.55));
+            var mPetal    = _placePetal(mPathStr, mAngle, r * 0.08, midColor, rand(0.88, 0.97), rand(-4, 4));
+            parts.push(mPetal);
+        }
+
+        // Inner spiral: 4-5 tight small petals, lighter colour
+        var innerCount = randInt(4, 5);
+        var innerOffset = spiralOffset + Math.PI / 3;
+        for (var k = 0; k < innerCount; k++) {
+            var iAngle = innerOffset + (k / innerCount) * Math.PI * 2 + rand(-0.15, 0.15);
+            var innerColor = lighten(primary, rand(0.12, 0.25));
+            innerColor = lerpColor(innerColor, lighten(secondary, 0.15), rand(0, 0.25));
+
+            var iPetalLen = r * rand(0.3, 0.42);
+            var iPetalW   = r * rand(0.28, 0.36);
+            var iPathStr  = _petalPath(iPetalLen, iPetalW, 0.2, rand(0.45, 0.6));
+            var iPetal    = _placePetal(iPathStr, iAngle, r * 0.03, innerColor, rand(0.92, 1.0), rand(-3, 3));
+            parts.push(iPetal);
+        }
+
+        // Centre rosette: a tight curl of 3 tiny petals
+        for (var c = 0; c < 3; c++) {
+            var cAngle = innerOffset + (c / 3) * Math.PI * 2 + rand(-0.2, 0.2);
+            var cColor = lighten(primary, rand(0.2, 0.35));
+            var cPetalLen = r * rand(0.15, 0.22);
+            var cPetalW   = r * rand(0.15, 0.22);
+            var cPathStr  = _petalPath(cPetalLen, cPetalW, 0.15, 0.55);
+            var cPetal    = _placePetal(cPathStr, cAngle, r * 0.01, cColor, rand(0.93, 1.0), rand(-8, 8));
+            parts.push(cPetal);
+        }
+
+        // Tight centre dot
+        var center = new fabric.Circle({
+            radius: r * 0.05,
+            left: 0,
+            top: 0,
+            originX: 'center',
+            originY: 'center',
+            fill: darken(accent, 0.25),
+            opacity: 0.7,
             selectable: false,
             evented: false
         });
@@ -1181,40 +1313,29 @@ const CompositionEngine = (function () {
     }
 
     /**
-     * Daisy-like flower: flat ring of elongated petals around a prominent centre.
+     * Daisy-like flower: narrow elongated petals tapering to a point,
+     * radiating from a textured centre disc with floret dots.
      */
     function _createDaisyLike(primary, secondary, accent, size) {
         var parts = [];
         var r = size / 2;
 
-        // Petals: long, narrow, arranged radially
-        var petalCount = randInt(10, 16);
+        // Petals: tapered bezier paths, wider at base, pointed at tip
+        var petalCount = randInt(12, 18);
 
         for (var i = 0; i < petalCount; i++) {
-            var angle = (i / petalCount) * Math.PI * 2;
-            var px = Math.cos(angle) * r * 0.35;
-            var py = Math.sin(angle) * r * 0.35;
+            var angle = (i / petalCount) * Math.PI * 2 + rand(-0.06, 0.06);
+            var petalColor = lerpColor(primary, secondary, rand(0, 0.25));
+            petalColor = darken(petalColor, rand(0, 0.04));
 
-            // Vary petal colour subtly
-            var petalColor = lerpColor(primary, secondary, rand(0, 0.3));
-
-            var petal = new fabric.Ellipse({
-                rx: r * 0.15,
-                ry: r * 0.5,
-                left: px,
-                top: py,
-                originX: 'center',
-                originY: 'center',
-                fill: petalColor,
-                opacity: rand(0.85, 1),
-                angle: angle * (180 / Math.PI) + 90,
-                selectable: false,
-                evented: false
-            });
+            var petalLen = r * rand(0.72, 0.92);
+            var petalW   = r * rand(0.16, 0.24);
+            var pathStr  = _taperedPetalPath(petalLen, petalW);
+            var petal    = _placePetal(pathStr, angle, r * 0.18, petalColor, rand(0.88, 1.0), rand(-3, 3));
             parts.push(petal);
         }
 
-        // Large centre disc
+        // Outer centre disc
         var centerOuter = new fabric.Circle({
             radius: r * 0.22,
             left: 0,
@@ -1227,85 +1348,84 @@ const CompositionEngine = (function () {
         });
         parts.push(centerOuter);
 
-        // Inner centre detail
+        // Inner centre (slightly darker, smaller)
         var centerInner = new fabric.Circle({
-            radius: r * 0.12,
+            radius: r * 0.14,
             left: 0,
             top: 0,
             originX: 'center',
             originY: 'center',
-            fill: darken(accent, 0.25),
+            fill: darken(accent, 0.2),
             selectable: false,
             evented: false
         });
         parts.push(centerInner);
 
-        // Tiny stamen dots
-        var stamenCount = randInt(5, 8);
-        for (var s = 0; s < stamenCount; s++) {
-            var sa = (s / stamenCount) * Math.PI * 2;
-            var sr = r * 0.16;
-            var dot = new fabric.Circle({
-                radius: rand(1, 2.5),
-                left: Math.cos(sa) * sr,
-                top: Math.sin(sa) * sr,
-                originX: 'center',
-                originY: 'center',
-                fill: lighten(accent, 0.3),
-                selectable: false,
-                evented: false
-            });
-            parts.push(dot);
+        // Floret texture: concentric rings of tiny dots representing disc florets
+        var ringCount = 3;
+        for (var ring = 1; ring <= ringCount; ring++) {
+            var ringR = r * 0.06 * ring;
+            var dotCount = ring * 5 + randInt(1, 3);
+            for (var d = 0; d < dotCount; d++) {
+                var da = (d / dotCount) * Math.PI * 2 + rand(-0.15, 0.15);
+                var dx = Math.cos(da) * ringR;
+                var dy = Math.sin(da) * ringR;
+                var dotColor = (ring % 2 === 0)
+                    ? lighten(accent, rand(0.15, 0.35))
+                    : darken(accent, rand(0.05, 0.2));
+                var dot = new fabric.Circle({
+                    radius: rand(0.6, 1.6),
+                    left: dx,
+                    top: dy,
+                    originX: 'center',
+                    originY: 'center',
+                    fill: dotColor,
+                    opacity: rand(0.6, 0.9),
+                    selectable: false,
+                    evented: false
+                });
+                parts.push(dot);
+            }
         }
 
         return parts;
     }
 
     /**
-     * Dahlia-like flower: many layers of petals getting smaller toward centre.
+     * Dahlia-like flower: three distinct size tiers of angular, pointed petals,
+     * each layer rotated slightly with colour gradients from outer (darker) to
+     * inner (lighter).
      */
     function _createDahliaLike(primary, secondary, accent, size) {
         var parts = [];
         var r = size / 2;
 
-        // Three concentric rings of petals
-        var layers = [
-            { count: randInt(10, 14), radiusFactor: 0.48, petalRx: 0.13, petalRy: 0.35, offset: 0 },
-            { count: randInt(8, 12),  radiusFactor: 0.3,  petalRx: 0.11, petalRy: 0.28, offset: 0.15 },
-            { count: randInt(6, 9),   radiusFactor: 0.15, petalRx: 0.09, petalRy: 0.2,  offset: 0.3 }
+        // Define three tiers of petals: outer, middle, inner
+        var tiers = [
+            { count: randInt(12, 16), lenFactor: rand(0.8, 0.95),  widFactor: rand(0.14, 0.18), dist: 0.2,  rotOff: 0,    colorMix: 0 },
+            { count: randInt(10, 13), lenFactor: rand(0.55, 0.7),  widFactor: rand(0.12, 0.16), dist: 0.12, rotOff: 0.18, colorMix: 0.3 },
+            { count: randInt(7, 10),  lenFactor: rand(0.32, 0.45), widFactor: rand(0.10, 0.14), dist: 0.06, rotOff: 0.35, colorMix: 0.6 }
         ];
 
-        for (var L = 0; L < layers.length; L++) {
-            var layer = layers[L];
-            // Each layer slightly different colour
-            var layerColor = lerpColor(primary, secondary, L * 0.25);
+        for (var ti = 0; ti < tiers.length; ti++) {
+            var tier = tiers[ti];
+            var tierBase = lerpColor(primary, lighten(secondary, 0.1), tier.colorMix);
 
-            for (var i = 0; i < layer.count; i++) {
-                var angle = (i / layer.count) * Math.PI * 2 + layer.offset;
-                var px = Math.cos(angle) * r * layer.radiusFactor;
-                var py = Math.sin(angle) * r * layer.radiusFactor;
+            for (var i = 0; i < tier.count; i++) {
+                var angle = (i / tier.count) * Math.PI * 2 + tier.rotOff + rand(-0.06, 0.06);
+                var petalColor = lerpColor(tierBase, lighten(tierBase, 0.08), rand(0, 0.3));
+                if (i % 3 === 0) petalColor = darken(petalColor, 0.04);
 
-                var petalColor = lerpColor(layerColor, lighten(layerColor, 0.1), rand(0, 0.3));
-
-                var petal = new fabric.Ellipse({
-                    rx: r * layer.petalRx,
-                    ry: r * layer.petalRy,
-                    left: px,
-                    top: py,
-                    originX: 'center',
-                    originY: 'center',
-                    fill: petalColor,
-                    opacity: rand(0.85, 1),
-                    angle: angle * (180 / Math.PI) + 90 + rand(-5, 5),
-                    selectable: false,
-                    evented: false
-                });
+                var petalLen = r * tier.lenFactor;
+                var petalW   = r * tier.widFactor;
+                var pathStr  = _angularPetalPath(petalLen, petalW);
+                var petal    = _placePetal(pathStr, angle, r * tier.dist, petalColor, rand(0.85, 1.0), rand(-4, 4));
                 parts.push(petal);
             }
         }
 
-        // Centre
-        var center = new fabric.Circle({
+        // Centre button
+        var centerOuter = new fabric.Circle({
             radius: r * 0.1,
             left: 0,
             top: 0,
@@ -1315,101 +1435,212 @@ const CompositionEngine = (function () {
             selectable: false,
             evented: false
         });
-        parts.push(center);
+        parts.push(centerOuter);
+
+        var centerInner = new fabric.Circle({
+            radius: r * 0.055,
+            left: 0,
+            top: 0,
+            originX: 'center',
+            originY: 'center',
+            fill: lighten(accent, 0.15),
+            opacity: 0.8,
+            selectable: false,
+            evented: false
+        });
+        parts.push(centerInner);
 
         return parts;
     }
 
     /**
-     * Simple blossom: 5 wide petals (cherry-blossom style).
+     * Simple blossom: classic 5-petal flower (cherry-blossom style).
+     * Each petal is heart-shaped using bezier curves. Delicate stamens
+     * radiate from the centre with tiny dots at tips.
      */
     function _createSimpleBlossom(primary, secondary, accent, size) {
         var parts = [];
         var r = size / 2;
         var petalCount = 5;
 
-        // Outer glow for softness
+        // Soft glow under the flower for depth
         var glow = new fabric.Circle({
-            radius: r * 0.65,
+            radius: r * 0.6,
             left: 0,
             top: 0,
             originX: 'center',
             originY: 'center',
-            fill: lighten(primary, 0.35),
-            opacity: 0.2,
+            fill: lighten(primary, 0.4),
+            opacity: 0.15,
             selectable: false,
             evented: false
         });
         parts.push(glow);
 
+        // Five heart-shaped petals
         for (var i = 0; i < petalCount; i++) {
             var angle = (i / petalCount) * Math.PI * 2 - Math.PI / 2; // start from top
-            var px = Math.cos(angle) * r * 0.3;
-            var py = Math.sin(angle) * r * 0.3;
+            var petalColor = lerpColor(primary, secondary, rand(0, 0.3));
+            petalColor = lerpColor(petalColor, lighten(primary, 0.1), rand(0, 0.15));
 
-            var petalColor = lerpColor(primary, secondary, rand(0, 0.35));
-
-            // Heart-shaped petal: two overlapping ellipses
-            var lobe1Angle = angle - 0.18;
-            var lobe2Angle = angle + 0.18;
-
-            var lobe1 = new fabric.Ellipse({
-                rx: r * 0.26,
-                ry: r * 0.42,
-                left: px + Math.cos(lobe1Angle) * r * 0.06,
-                top: py + Math.sin(lobe1Angle) * r * 0.06,
-                originX: 'center',
-                originY: 'center',
-                fill: petalColor,
-                opacity: rand(0.85, 0.95),
-                angle: angle * (180 / Math.PI) + 90 + rand(-3, 3),
-                selectable: false,
-                evented: false
-            });
-
-            var lobe2 = new fabric.Ellipse({
-                rx: r * 0.26,
-                ry: r * 0.42,
-                left: px + Math.cos(lobe2Angle) * r * 0.06,
-                top: py + Math.sin(lobe2Angle) * r * 0.06,
-                originX: 'center',
-                originY: 'center',
-                fill: petalColor,
-                opacity: rand(0.85, 0.95),
-                angle: angle * (180 / Math.PI) + 90 + rand(-3, 3),
-                selectable: false,
-                evented: false
-            });
-
-            parts.push(lobe1);
-            parts.push(lobe2);
+            var petalLen = r * rand(0.7, 0.82);
+            var petalW   = r * rand(0.52, 0.62);
+            var pathStr  = _heartPetalPath(petalLen, petalW);
+            var petal    = _placePetal(pathStr, angle, r * 0.05, petalColor, rand(0.85, 0.96), rand(-3, 3));
+            parts.push(petal);
         }
 
-        // Centre cluster of stamens
+        // Centre disc
         var centerDisc = new fabric.Circle({
-            radius: r * 0.15,
+            radius: r * 0.12,
             left: 0,
             top: 0,
             originX: 'center',
             originY: 'center',
             fill: accent,
+            opacity: 0.9,
             selectable: false,
             evented: false
         });
         parts.push(centerDisc);
 
-        // Stamen dots radiating from centre
+        // Stamens: thin lines with dots at tips
         var stamenCount = randInt(6, 10);
         for (var s = 0; s < stamenCount; s++) {
-            var sa = (s / stamenCount) * Math.PI * 2 + rand(-0.1, 0.1);
-            var sd = r * rand(0.06, 0.14);
-            var dot = new fabric.Circle({
-                radius: rand(1.2, 2.5),
-                left: Math.cos(sa) * sd,
-                top: Math.sin(sa) * sd,
+            var sa = (s / stamenCount) * Math.PI * 2 + rand(-0.12, 0.12);
+            var sLen = r * rand(0.14, 0.26);
+            var sx = Math.cos(sa) * sLen;
+            var sy = Math.sin(sa) * sLen;
+
+            // Stamen line (thin filament)
+            var filament = new fabric.Path(
+                'M 0 0 Q ' + (sx * 0.5 + rand(-1, 1)) + ' ' + (sy * 0.5 + rand(-1, 1)) + ' ' + sx + ' ' + sy,
+                {
+                    left: 0,
+                    top: 0,
+                    originX: 'center',
+                    originY: 'center',
+                    stroke: darken(accent, 0.1),
+                    strokeWidth: rand(0.5, 1.0),
+                    fill: '',
+                    opacity: rand(0.5, 0.75),
+                    selectable: false,
+                    evented: false
+                }
+            );
+            parts.push(filament);
+
+            // Anther (dot at tip)
+            var anther = new fabric.Circle({
+                radius: rand(1.0, 2.2),
+                left: sx,
+                top: sy,
                 originX: 'center',
                 originY: 'center',
-                fill: lighten(accent, rand(0.15, 0.4)),
+                fill: lighten(accent, rand(0.2, 0.45)),
+                opacity: rand(0.7, 0.95),
+                selectable: false,
+                evented: false
+            });
+            parts.push(anther);
+        }
+
+        return parts;
+    }
+
+    // -----------------------------------------------------------------
+    // Tulip-like: cup-shaped petals in two overlapping rows
+    // -----------------------------------------------------------------
+
+    /**
+     * Tulip-like flower: 6 cup-shaped petals arranged in two rows of 3.
+     * Inner row slightly smaller and rotated 60 degrees from the outer row.
+     * Petals overlap naturally creating a cup silhouette.
+     */
+    function _createTulipLike(primary, secondary, accent, size) {
+        var parts = [];
+        var r = size / 2;
+
+        // Subtle shadow base
+        var shadow = new fabric.Circle({
+            radius: r * 0.55,
+            left: 0,
+            top: r * 0.1,
+            originX: 'center',
+            originY: 'center',
+            fill: darken(primary, 0.35),
+            opacity: 0.1,
+            selectable: false,
+            evented: false
+        });
+        parts.push(shadow);
+
+        // Outer row: 3 large cup-shaped petals
+        for (var i = 0; i < 3; i++) {
+            var angle = (i / 3) * Math.PI * 2 - Math.PI / 2 + rand(-0.06, 0.06);
+            var petalColor = lerpColor(primary, darken(primary, 0.08), rand(0, 0.25));
+            petalColor = lerpColor(petalColor, secondary, rand(0, 0.1));
+
+            var petalLen = r * rand(0.85, 1.0);
+            var petalW   = r * rand(0.55, 0.65);
+            var pathStr  = _cupPetalPath(petalLen, petalW);
+            var petal    = _placePetal(pathStr, angle, r * 0.04, petalColor, rand(0.85, 0.95), rand(-3, 3));
+            parts.push(petal);
+        }
+
+        // Inner row: 3 slightly smaller petals, rotated 60 degrees
+        for (var j = 0; j < 3; j++) {
+            var jAngle = ((j / 3) * Math.PI * 2) + (Math.PI / 3) - Math.PI / 2 + rand(-0.06, 0.06);
+            var innerColor = lighten(primary, rand(0.05, 0.15));
+            innerColor = lerpColor(innerColor, secondary, rand(0, 0.15));
+
+            var jPetalLen = r * rand(0.7, 0.85);
+            var jPetalW   = r * rand(0.48, 0.58);
+            var jPathStr  = _cupPetalPath(jPetalLen, jPetalW);
+            var jPetal    = _placePetal(jPathStr, jAngle, r * 0.02, innerColor, rand(0.88, 0.98), rand(-3, 3));
+            parts.push(jPetal);
+        }
+
+        // Subtle vein lines on the outer petals
+        for (var v = 0; v < 3; v++) {
+            var vAngle = (v / 3) * Math.PI * 2 - Math.PI / 2;
+            var vLen = r * 0.65;
+            var vx = Math.cos(vAngle) * vLen * 0.5;
+            var vy = Math.sin(vAngle) * vLen * 0.5;
+
+            var vein = new fabric.Path(
+                'M 0 0 Q ' + (vx * 0.4 + rand(-1, 1)) + ' ' + (vy * 0.4) + ' ' + vx + ' ' + vy,
+                {
+                    left: 0,
+                    top: 0,
+                    originX: 'center',
+                    originY: 'center',
+                    stroke: darken(primary, 0.12),
+                    strokeWidth: 0.6,
+                    fill: '',
+                    opacity: 0.18,
+                    selectable: false,
+                    evented: false
+                }
+            );
+            parts.push(vein);
+        }
+
+        // Inner pistil/stamen cluster
+        var pistilCount = randInt(3, 5);
+        for (var p = 0; p < pistilCount; p++) {
+            var pa = (p / pistilCount) * Math.PI * 2 + rand(-0.2, 0.2);
+            var pDist = r * rand(0.04, 0.09);
+            var px = Math.cos(pa) * pDist;
+            var py = Math.sin(pa) * pDist;
+            var dot = new fabric.Circle({
+                radius: rand(1.0, 2.0),
+                left: px,
+                top: py,
+                originX: 'center',
+                originY: 'center',
+                fill: darken(accent, rand(0.1, 0.25)),
+                opacity: rand(0.65, 0.85),
                 selectable: false,
                 evented: false
             });
@@ -1420,11 +1651,102 @@ const CompositionEngine = (function () {
     }
 
     // -----------------------------------------------------------------
-    // Fallback Flower (coloured circle sprite)
+    // Wildflower cluster: many tiny flowers clustered together
     // -----------------------------------------------------------------
 
     /**
-     * Generate a coloured circle "sprite" as a minimal fallback flower.
+     * Wildflower cluster: many tiny 4-5 petal flowers clustered together
+     * (like baby's breath or forget-me-nots). Creates a cloud-like
+     * grouping of miniature blossoms.
+     */
+    function _createWildflowerCluster(primary, secondary, accent, size) {
+        var parts = [];
+        var r = size / 2;
+
+        // Soft background haze to unify the cluster
+        var haze = new fabric.Circle({
+            radius: r * 0.75,
+            left: 0,
+            top: 0,
+            originX: 'center',
+            originY: 'center',
+            fill: lighten(primary, 0.45),
+            opacity: 0.12,
+            selectable: false,
+            evented: false
+        });
+        parts.push(haze);
+
+        // Generate 5-9 tiny flowers in a cluster
+        var flowerCount = randInt(5, 9);
+        for (var f = 0; f < flowerCount; f++) {
+            // Position each mini-flower within the cluster area
+            var fAngle = (f / flowerCount) * Math.PI * 2 + rand(-0.4, 0.4);
+            var fDist  = rand(0, r * 0.5);
+            var fx = Math.cos(fAngle) * fDist + rand(-3, 3);
+            var fy = Math.sin(fAngle) * fDist + rand(-3, 3);
+
+            // Each tiny flower has 4-5 petals
+            var miniPetalCount = randInt(4, 5);
+            var miniSize = r * rand(0.18, 0.32);
+            var flowerColor = lerpColor(primary, secondary, rand(0, 0.4));
+            flowerColor = lerpColor(flowerColor, lighten(primary, 0.2), rand(0, 0.3));
+
+            for (var mp = 0; mp < miniPetalCount; mp++) {
+                var pAngle = (mp / miniPetalCount) * Math.PI * 2 + rand(-0.1, 0.1);
+                var mpColor = lerpColor(flowerColor, lighten(flowerColor, 0.1), rand(0, 0.2));
+
+                var mpLen = miniSize * rand(0.8, 1.1);
+                var mpW   = miniSize * rand(0.55, 0.75);
+                var mpPathStr = _petalPath(mpLen, mpW, 0.35, 0.4);
+
+                var mpx = fx + Math.cos(pAngle) * miniSize * 0.15;
+                var mpy = fy + Math.sin(pAngle) * miniSize * 0.15;
+                var mpRotDeg = pAngle * (180 / Math.PI) + 90 + rand(-5, 5);
+
+                var miniPetal = new fabric.Path(mpPathStr, {
+                    left: mpx,
+                    top: mpy,
+                    originX: 'center',
+                    originY: 'top',
+                    fill: mpColor,
+                    stroke: darken(mpColor, 0.06),
+                    strokeWidth: 0.2,
+                    opacity: rand(0.8, 0.96),
+                    angle: mpRotDeg,
+                    selectable: false,
+                    evented: false
+                });
+                parts.push(miniPetal);
+            }
+
+            // Tiny centre dot for each mini flower
+            var dotColor = (f % 2 === 0) ? accent : lighten(accent, 0.25);
+            var centerDot = new fabric.Circle({
+                radius: rand(0.8, 1.8),
+                left: fx,
+                top: fy,
+                originX: 'center',
+                originY: 'center',
+                fill: dotColor,
+                opacity: rand(0.7, 0.95),
+                selectable: false,
+                evented: false
+            });
+            parts.push(centerDot);
+        }
+
+        return parts;
+    }
+
+    // -----------------------------------------------------------------
+    // Fallback Flower (simplified but still uses bezier petals)
+    // -----------------------------------------------------------------
+
+    /**
+     * Generate a simplified bezier-petal flower as a minimal fallback.
+     * Uses 5-6 simple petals with a centre dot -- lighter weight than
+     * the full procedural flowers but still organic looking.
      *
      * @param {Object} flowerData - flower entry with colour info
      * @param {number} size - diameter in pixels
@@ -1434,64 +1756,66 @@ const CompositionEngine = (function () {
         size = size || 50;
         var colors = _getFlowerColors(flowerData);
         var primary = colors[0];
+        var secondary = colors[1] || lighten(primary, 0.2);
+        var accent = colors[2] || darken(primary, 0.15);
+        var r = size / 2;
 
         var parts = [];
 
-        // Outer halo
+        // Soft halo for depth
         var halo = new fabric.Circle({
-            radius: size * 0.52,
+            radius: r * 0.55,
             left: 0,
             top: 0,
             originX: 'center',
             originY: 'center',
-            fill: lighten(primary, 0.3),
-            opacity: 0.35,
+            fill: lighten(primary, 0.35),
+            opacity: 0.18,
             selectable: false,
             evented: false
         });
         parts.push(halo);
 
-        // Main body
-        var body = new fabric.Circle({
-            radius: size * 0.42,
-            left: 0,
-            top: 0,
-            originX: 'center',
-            originY: 'center',
-            fill: primary,
-            opacity: 0.9,
-            selectable: false,
-            evented: false
-        });
-        parts.push(body);
+        // 5-6 simple bezier petals
+        var petalCount = randInt(5, 6);
+        for (var i = 0; i < petalCount; i++) {
+            var angle = (i / petalCount) * Math.PI * 2 + rand(-0.08, 0.08);
+            var petalColor = lerpColor(primary, secondary, rand(0, 0.3));
 
-        // Inner highlight
-        var highlight = new fabric.Circle({
-            radius: size * 0.2,
-            left: -size * 0.05,
-            top: -size * 0.08,
-            originX: 'center',
-            originY: 'center',
-            fill: lighten(primary, 0.4),
-            opacity: 0.4,
-            selectable: false,
-            evented: false
-        });
-        parts.push(highlight);
+            var petalLen = r * rand(0.6, 0.78);
+            var petalW   = r * rand(0.35, 0.48);
+            var pathStr  = _petalPath(petalLen, petalW, 0.3, 0.45);
+            var petal    = _placePetal(pathStr, angle, r * 0.06, petalColor, rand(0.82, 0.95), rand(-4, 4));
+            parts.push(petal);
+        }
 
         // Centre dot
         var center = new fabric.Circle({
-            radius: size * 0.1,
+            radius: r * 0.1,
             left: 0,
             top: 0,
             originX: 'center',
             originY: 'center',
-            fill: darken(primary, 0.3),
-            opacity: 0.8,
+            fill: darken(accent, 0.2),
+            opacity: 0.85,
             selectable: false,
             evented: false
         });
         parts.push(center);
+
+        // Highlight
+        var highlight = new fabric.Circle({
+            radius: r * 0.055,
+            left: -r * 0.02,
+            top: -r * 0.02,
+            originX: 'center',
+            originY: 'center',
+            fill: lighten(accent, 0.3),
+            opacity: 0.45,
+            selectable: false,
+            evented: false
+        });
+        parts.push(highlight);
 
         return new fabric.Group(parts, {
             selectable: false,
@@ -1543,6 +1867,31 @@ const CompositionEngine = (function () {
      */
     function applyVintageFilter() {
         if (!canvas) return;
+
+        // White aesthetic: skip the full vintage filter, only add a subtle vignette
+        var vignetteSize = Math.max(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.7;
+        var vignette = new fabric.Circle({
+            radius: vignetteSize,
+            left: CANVAS_WIDTH / 2,
+            top: CANVAS_HEIGHT / 2,
+            originX: 'center',
+            originY: 'center',
+            fill: new fabric.Gradient({
+                type: 'radial',
+                coords: { x1: vignetteSize, y1: vignetteSize, r1: vignetteSize * 0.5, x2: vignetteSize, y2: vignetteSize, r2: vignetteSize },
+                colorStops: [
+                    { offset: 0, color: 'rgba(255,255,255,0)' },
+                    { offset: 0.7, color: 'rgba(255,255,255,0)' },
+                    { offset: 1, color: 'rgba(240,240,240,0.3)' }
+                ]
+            }),
+            selectable: false,
+            evented: false
+        });
+        canvas.add(vignette);
+        return;
+
+        // --- Original vintage filter below (disabled for white aesthetic) ---
 
         // Warm sepia overlay
         var warmOverlay = new fabric.Rect({
@@ -1634,86 +1983,133 @@ const CompositionEngine = (function () {
 
         // Clear the canvas completely
         canvas.clear();
-        canvas.backgroundColor = '#000000';
+        canvas.backgroundColor = '#ffffff';
 
         console.log('[CompositionEngine] Beginning composition...');
+
+        // Default position in case vase placement fails
+        var defaultPos = {
+            centerX:    CANVAS_WIDTH / 2,
+            topY:       CANVAS_HEIGHT * 0.4,
+            bottomY:    CANVAS_HEIGHT - 20,
+            mouthY:     CANVAS_HEIGHT * 0.4,
+            mouthWidth: 150,
+            width:      CANVAS_WIDTH * 0.5,
+            height:     CANVAS_HEIGHT * 0.55
+        };
 
         // ----------------------------------------------------------
         // LAYER 0: Atmospheric Background
         // ----------------------------------------------------------
-        var bgInfo = renderBackground(weather);
-        console.log('[CompositionEngine] Background rendered (' + (bgInfo ? bgInfo.period : 'unknown') + ')');
+        var bgInfo = null;
+        try {
+            bgInfo = renderBackground(weather);
+            console.log('[CompositionEngine] Background rendered (' + (bgInfo ? bgInfo.period : 'unknown') + ')');
+        } catch (e) {
+            console.warn('[CompositionEngine] Background failed:', e.message);
+            // Fallback: white background
+            canvas.backgroundColor = '#ffffff';
+        }
 
         // ----------------------------------------------------------
         // LAYER 1: Place the Vase
         // ----------------------------------------------------------
-        var vaseImageUrl = null;
-        if (vaseData) {
-            vaseImageUrl = vaseData.processedImageDataUrl || vaseData.processedDataUrl || vaseData.imageUrl || null;
-        }
+        var vasePosition = defaultPos;
+        try {
+            var vaseImageUrl = null;
+            if (vaseData) {
+                vaseImageUrl = vaseData.processedImageDataUrl || vaseData.processedDataUrl || vaseData.imageUrl || null;
+            }
 
-        var vasePosition = await new Promise(function (resolve) {
-            placeVase(vaseImageUrl, function (fabricImg, posData) {
-                if (posData) {
-                    resolve(posData);
-                } else {
-                    // Provide a sensible default position
-                    resolve({
-                        centerX:    CANVAS_WIDTH / 2,
-                        topY:       CANVAS_HEIGHT * 0.4,
-                        bottomY:    CANVAS_HEIGHT - 20,
-                        mouthY:     CANVAS_HEIGHT * 0.4,
-                        mouthWidth: 150,
-                        width:      CANVAS_WIDTH * 0.5,
-                        height:     CANVAS_HEIGHT * 0.55
+            vasePosition = await new Promise(function (resolve) {
+                try {
+                    placeVase(vaseImageUrl, function (fabricImg, posData) {
+                        resolve(posData || defaultPos);
                     });
+                } catch (innerErr) {
+                    console.warn('[CompositionEngine] placeVase threw:', innerErr.message);
+                    resolve(defaultPos);
                 }
+                // Safety timeout: resolve after 5s if callback never fires
+                setTimeout(function () { resolve(defaultPos); }, 5000);
             });
-        });
+        } catch (e) {
+            console.warn('[CompositionEngine] Vase placement failed:', e.message);
+        }
 
         var anchorX = vasePosition.centerX;
         var anchorY = vasePosition.mouthY;
         var mouthWidth = vasePosition.mouthWidth;
 
-        console.log('[CompositionEngine] Vase placed at (' + anchorX + ', ' + anchorY + '), mouth width: ' + Math.round(mouthWidth));
+        console.log('[CompositionEngine] Vase at (' + anchorX + ', ' + anchorY + '), mouth: ' + Math.round(mouthWidth));
 
         // ----------------------------------------------------------
         // LAYER 2: Shadow Foliage (behind the bouquet)
         // ----------------------------------------------------------
-        var shadowCount = randInt(3, 5);
-        renderShadowFoliage(anchorX, anchorY, shadowCount);
+        try {
+            var shadowCount = randInt(3, 5);
+            renderShadowFoliage(anchorX, anchorY, shadowCount);
+        } catch (e) {
+            console.warn('[CompositionEngine] Shadow foliage failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // Calculate flower positions via phyllotaxis
         // ----------------------------------------------------------
-        var positions = distributeFlowers(bouquetRecipe, anchorX, anchorY, mouthWidth);
+        var positions = [];
+        try {
+            positions = distributeFlowers(bouquetRecipe, anchorX, anchorY, mouthWidth);
+        } catch (e) {
+            console.warn('[CompositionEngine] Flower distribution failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // LAYER 3: Stems (from vase mouth to each flower)
         // ----------------------------------------------------------
-        renderStems(positions, anchorX, anchorY);
+        try {
+            renderStems(positions, anchorX, anchorY);
+        } catch (e) {
+            console.warn('[CompositionEngine] Stems failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // LAYER 4: Vase Lip Mask (stems disappear into vase)
         // ----------------------------------------------------------
-        var lipMaskUrl = (vaseData && vaseData.lipMaskDataUrl) ? vaseData.lipMaskDataUrl : null;
-        placeVaseLipMask(lipMaskUrl, vasePosition);
+        try {
+            var lipMaskUrl = (vaseData && vaseData.lipMaskDataUrl) ? vaseData.lipMaskDataUrl : null;
+            placeVaseLipMask(lipMaskUrl, vasePosition);
+        } catch (e) {
+            console.warn('[CompositionEngine] Lip mask failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // Add some small decorative foliage among the flower area
         // ----------------------------------------------------------
-        _addDecorativeFoliage(positions, anchorX, anchorY);
+        try {
+            _addDecorativeFoliage(positions, anchorX, anchorY);
+        } catch (e) {
+            console.warn('[CompositionEngine] Decorative foliage failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // LAYERS 5 & 6: Render Flowers (primary + accent + foliage)
         // ----------------------------------------------------------
-        var placedFlowers = await renderFlowers(positions, flowerImages);
-        console.log('[CompositionEngine] Placed ' + placedFlowers.length + ' flowers');
+        var placedFlowers = [];
+        try {
+            placedFlowers = await renderFlowers(positions, flowerImages);
+            console.log('[CompositionEngine] Placed ' + placedFlowers.length + ' flowers');
+        } catch (e) {
+            console.warn('[CompositionEngine] Flower rendering failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // LAYER 7: Vintage / Unifying Filter
         // ----------------------------------------------------------
-        applyVintageFilter();
+        try {
+            applyVintageFilter();
+        } catch (e) {
+            console.warn('[CompositionEngine] Vintage filter failed:', e.message);
+        }
 
         // ----------------------------------------------------------
         // Final render

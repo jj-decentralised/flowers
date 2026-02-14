@@ -90,7 +90,16 @@ const UI = (function () {
             weatherDetails:   document.getElementById('weather-details'),
             astronomyDetails: document.getElementById('astronomy-details'),
             museumDetails:    document.getElementById('museum-details'),
-            floraList:        document.getElementById('flora-list')
+            floraList:        document.getElementById('flora-list'),
+            // New elements for white aesthetic
+            birdName:         document.getElementById('bird-name'),
+            birdScientific:   document.getElementById('bird-scientific'),
+            birdDescription:  document.getElementById('bird-description'),
+            birdPlayBtn:      document.getElementById('bird-play-btn'),
+            poemLines:        document.getElementById('poem-lines'),
+            poemAttribution:  document.getElementById('poem-attribution'),
+            detailsToggle:    document.getElementById('details-toggle'),
+            detailsBody:      document.getElementById('details-body')
         };
 
         setupEventListeners();
@@ -102,6 +111,15 @@ const UI = (function () {
             } catch (_) {
                 elements.birthdayInput.value = '1995-11-04';
             }
+        }
+
+        // Set up details toggle
+        if (elements.detailsToggle && elements.detailsBody) {
+            elements.detailsToggle.addEventListener('click', function () {
+                elements.detailsBody.classList.toggle('hidden');
+                elements.detailsToggle.textContent =
+                    elements.detailsBody.classList.contains('hidden') ? 'Details' : 'Hide details';
+            });
         }
     }
 
@@ -749,6 +767,51 @@ const UI = (function () {
     // Public API
     // -------------------------------------------------------------------
 
+    // -------------------------------------------------------------------
+    // Bird display
+    // -------------------------------------------------------------------
+
+    function displayBird(birdData) {
+        if (!birdData) return;
+        if (elements.birdName) {
+            elements.birdName.textContent = birdData.name || '';
+        }
+        if (elements.birdScientific) {
+            elements.birdScientific.textContent = birdData.scientific || '';
+        }
+        if (elements.birdDescription) {
+            elements.birdDescription.textContent = birdData.description || '';
+        }
+        // Wire play button
+        if (elements.birdPlayBtn && typeof BirdSongs !== 'undefined') {
+            elements.birdPlayBtn.onclick = function () {
+                try {
+                    BirdSongs.playChirp(birdData);
+                } catch (e) {
+                    console.warn('[UI] Bird chirp failed:', e.message);
+                }
+            };
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // Poem display
+    // -------------------------------------------------------------------
+
+    function displayPoem(poemData) {
+        if (!poemData) return;
+        if (elements.poemLines) {
+            // Convert \n to <br> for line breaks
+            elements.poemLines.innerHTML = (poemData.lines || '').replace(/\n/g, '<br>');
+        }
+        if (elements.poemAttribution) {
+            var attribution = '';
+            if (poemData.poet) attribution += poemData.poet;
+            if (poemData.title) attribution += ', \u201C' + poemData.title + '\u201D';
+            elements.poemAttribution.textContent = attribution ? '\u2014 ' + attribution : '';
+        }
+    }
+
     return {
         init:              init,
         showLoading:       showLoading,
@@ -760,6 +823,8 @@ const UI = (function () {
         displayCelestial:  displayCelestial,
         displayMuseum:     displayMuseum,
         displayFloraList:  displayFloraList,
+        displayBird:       displayBird,
+        displayPoem:       displayPoem,
         showError:         showError
     };
 

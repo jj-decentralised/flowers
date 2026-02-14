@@ -1,5 +1,6 @@
 /* ==========================================================================
-   The Living Vases — Stylesheet
+   The Living Vases — Plain White Aesthetic
+   A personal, intimate single-page experience
    ========================================================================== */
 
 /* ---------- Reset & Base ---------- */
@@ -15,12 +16,13 @@
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   font-family: 'Georgia', 'Times New Roman', serif;
-  background-color: #f5f0eb;
-  color: #2c2c2c;
+  background-color: #ffffff;
+  color: #1a1a1a;
   min-height: 100vh;
 }
 
@@ -30,77 +32,185 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem 1rem;
-  max-width: 1200px;
+  max-width: 800px;
   margin: 0 auto;
+  padding: 0;
 }
 
-/* ---------- Header ---------- */
+/* ---------- Canvas Section (top) ---------- */
 
-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-header h1 {
-  font-size: 2.4rem;
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  color: #3a3a3a;
-}
-
-header .subtitle {
-  font-size: 0.95rem;
-  color: #888;
-  margin-top: 0.4rem;
-  font-style: italic;
-}
-
-/* ---------- Canvas ---------- */
-
-#canvas-container {
-  background: #fff;
-  border: 1px solid #ddd;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  margin-bottom: 2rem;
+#canvas-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  background: #ffffff;
 }
 
 #main-canvas {
   display: block;
+  max-width: 100%;
+  height: auto;
 }
 
-/* ---------- Info Panel ---------- */
+/* ---------- Separator ---------- */
 
-#info-panel {
+.separator {
+  width: 60px;
+  height: 1px;
+  background: #d0d0d0;
+  margin: 2.5rem auto;
+}
+
+/* ---------- Content Sections ---------- */
+
+.content-section {
   width: 100%;
-  max-width: 800px;
+  max-width: 560px;
+  padding: 0 1.5rem;
+  text-align: center;
 }
 
-.info-block {
-  background: #fff;
-  border: 1px solid #e0dcd7;
-  border-radius: 4px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.info-block h3 {
-  font-size: 0.85rem;
+.section-label {
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #999;
-  margin-bottom: 0.4rem;
-}
-
-#composition-info {
-  margin-top: 1.5rem;
-}
-
-#composition-info h2,
-#data-sources h2 {
-  font-size: 1.1rem;
+  letter-spacing: 0.2em;
+  color: #aaa;
   margin-bottom: 0.75rem;
+}
+
+/* ---------- Bird Section ---------- */
+
+#bird-section {
+  padding-bottom: 0;
+}
+
+#bird-name {
+  font-size: 1.4rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: #1a1a1a;
+  margin-bottom: 0.2rem;
+}
+
+.scientific-name {
+  font-style: italic;
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.75rem;
+}
+
+.bird-note {
+  font-size: 0.95rem;
   color: #555;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* Play button — minimal circle */
+.play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background: transparent;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.play-btn:hover {
+  border-color: #888;
+  background: #f8f8f8;
+}
+
+.play-icon {
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent #888;
+  margin-left: 2px;
+}
+
+/* ---------- Poem Section ---------- */
+
+#poem-section blockquote {
+  font-size: 1.15rem;
+  line-height: 1.75;
+  color: #2a2a2a;
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  border: none;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#poem-section cite {
+  display: block;
+  font-size: 0.8rem;
+  color: #aaa;
+  font-style: normal;
+  margin-top: 1rem;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Details Section (collapsible) ---------- */
+
+.toggle-btn {
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #aaa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  transition: color 0.2s ease;
+}
+
+.toggle-btn:hover {
+  color: #555;
+}
+
+.details-body {
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.detail-group {
+  margin-bottom: 1.25rem;
+}
+
+.detail-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #aaa;
+  margin-bottom: 0.3rem;
+}
+
+.detail-value {
+  font-size: 0.9rem;
+  color: #444;
+  line-height: 1.5;
+}
+
+.detail-group input[type="date"] {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: #fff;
+  color: #1a1a1a;
+  width: 100%;
 }
 
 #flora-list {
@@ -109,51 +219,63 @@ header .subtitle {
 }
 
 #flora-list li {
-  padding: 0.35rem 0;
-  border-bottom: 1px solid #eee;
-  font-size: 0.9rem;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+  color: #555;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-/* ---------- Buttons ---------- */
-
-.btn-primary {
+.btn-generate,
+.btn-download {
   display: block;
   width: 100%;
-  padding: 0.85rem 1.5rem;
-  margin-top: 1.5rem;
-  font-family: inherit;
-  font-size: 1rem;
-  background: #3a3a3a;
-  color: #f5f0eb;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  letter-spacing: 0.04em;
-  transition: background 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: #555;
-}
-
-.btn-secondary {
-  display: block;
-  width: 100%;
-  padding: 0.65rem 1.2rem;
+  padding: 0.7rem 1rem;
   margin-top: 0.75rem;
   font-family: inherit;
-  font-size: 0.9rem;
-  background: transparent;
-  color: #3a3a3a;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.btn-secondary:hover {
-  background: #3a3a3a;
-  color: #f5f0eb;
+.btn-generate {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+}
+
+.btn-generate:hover {
+  background: #444;
+}
+
+.btn-download {
+  background: transparent;
+  color: #888;
+  border: 1px solid #ddd;
+}
+
+.btn-download:hover {
+  border-color: #888;
+  color: #444;
+}
+
+/* ---------- Receipt ---------- */
+
+.receipt {
+  width: 100%;
+  max-width: 560px;
+  padding: 1.5rem;
+}
+
+.receipt pre {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #555;
+  margin: 0;
 }
 
 /* ---------- Loading Overlay ---------- */
@@ -161,28 +283,29 @@ header .subtitle {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(245, 240, 235, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.5s ease;
 }
 
 .loading-overlay.hidden {
+  display: flex !important;
   opacity: 0;
   pointer-events: none;
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #ddd;
-  border-top-color: #3a3a3a;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid #e0e0e0;
+  border-top-color: #1a1a1a;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 1rem;
+  animation: spin 0.9s linear infinite;
+  margin-bottom: 1.2rem;
 }
 
 @keyframes spin {
@@ -191,23 +314,8 @@ header .subtitle {
 
 #loading-message {
   font-style: italic;
-  color: #888;
-}
-
-/* ---------- Receipt ---------- */
-
-.receipt {
-  margin-top: 1.5rem;
-  padding: 1.25rem;
-  background: #fff;
-  border: 1px solid #e0dcd7;
-  border-radius: 4px;
-}
-
-.receipt h2 {
-  font-size: 1rem;
-  margin-bottom: 0.75rem;
-  color: #555;
+  font-size: 0.9rem;
+  color: #999;
 }
 
 /* ---------- Utilities ---------- */
@@ -216,76 +324,29 @@ header .subtitle {
   display: none !important;
 }
 
-/* Loading overlay uses opacity-based hiding for smooth transitions */
-.loading-overlay.hidden {
-  display: flex !important;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* ---------- Birthday Input ---------- */
-
-.birthday-block {
-  text-align: center;
-}
-
-.birthday-block .input-hint {
-  font-style: italic;
-  font-size: 0.85rem;
-  color: #999;
-  margin-bottom: 0.5rem;
-}
-
-.birthday-block input[type="date"] {
-  font-family: inherit;
-  font-size: 1rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #faf8f5;
-  color: #3a3a3a;
-  width: 100%;
-  text-align: center;
-}
-
-/* ---------- Receipt Content ---------- */
-
-.receipt pre {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  color: #3a3a3a;
-  background: #faf8f5;
-  padding: 1rem;
-  border: 1px dashed #d0ccc7;
-  border-radius: 3px;
-  margin-bottom: 0.75rem;
-  max-height: 500px;
-  overflow-y: auto;
-}
-
 /* ---------- Responsive ---------- */
 
-@media (min-width: 900px) {
-  #app {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 2rem;
+@media (max-width: 600px) {
+  #main-canvas {
+    width: 100% !important;
+    height: auto !important;
   }
 
-  header {
-    width: 100%;
+  .content-section {
+    padding: 0 1rem;
   }
 
-  #canvas-container {
-    margin-bottom: 0;
+  #bird-name {
+    font-size: 1.2rem;
   }
 
-  #info-panel {
-    max-width: 340px;
+  #poem-section blockquote {
+    font-size: 1rem;
   }
+}
+
+/* ---------- Bottom spacing ---------- */
+
+#app {
+  padding-bottom: 4rem;
 }

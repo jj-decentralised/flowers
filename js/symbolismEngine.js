@@ -319,7 +319,9 @@ const SymbolismEngine = (function () {
         var results = [];
         var sunSign = celestialProfile.sunSign || '';
         var venusSign = celestialProfile.venusSign || '';
-        var moonPhase = typeof celestialProfile.moonPhase === 'number' ? celestialProfile.moonPhase : 0.5;
+        var moonPhase = typeof celestialProfile.moonIllumination === 'number'
+            ? celestialProfile.moonIllumination
+            : (typeof celestialProfile.moonPhase === 'number' ? celestialProfile.moonPhase : 0.5);
 
         // --- Sun sign -> primary zodiac flower ---
         var sunFlower = FloraDatabase.getByZodiac(sunSign);
@@ -616,9 +618,9 @@ const SymbolismEngine = (function () {
         var celestialFlowers = selectCelestialFlowers(celestialProfile);
 
         // 4. Compute bloom count from moon phase
-        var moonIllumination = typeof celestialProfile.moonPhase === 'number'
-            ? celestialProfile.moonPhase
-            : 0.5;
+        var moonIllumination = typeof celestialProfile.moonIllumination === 'number'
+            ? celestialProfile.moonIllumination
+            : (typeof celestialProfile.moonPhase === 'number' ? celestialProfile.moonPhase : 0.5);
         var bloomCount = calculateBloomCount(moonIllumination);
 
         // 5. Combine all selections for palette extraction

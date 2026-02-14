@@ -55,7 +55,27 @@ const App = (function () {
             });
         }
 
-        // 4. Auto-generate on first load with the default date
+        // 4. Display today's bird
+        try {
+            if (typeof BirdSongs !== 'undefined' && typeof BirdSongs.getTodaysBird === 'function') {
+                var bird = BirdSongs.getTodaysBird();
+                UI.displayBird(bird);
+            }
+        } catch (e) {
+            console.warn('[App] Bird display failed:', e.message);
+        }
+
+        // 5. Display today's poem
+        try {
+            if (typeof LovePoems !== 'undefined' && typeof LovePoems.getTodaysPoem === 'function') {
+                var poem = LovePoems.getTodaysPoem();
+                UI.displayPoem(poem);
+            }
+        } catch (e) {
+            console.warn('[App] Poem display failed:', e.message);
+        }
+
+        // 6. Auto-generate on first load with the default date
         await generate();
     }
 
@@ -85,13 +105,16 @@ const App = (function () {
             // -------------------------------------------------------
 
             UI.updateLoadingText('Consulting the stars\u2026');
-            var celestialProfile = getCelestialProfile(dateStr);
+            var celestialProfile = normalizeCelestialProfile(getCelestialProfile(dateStr));
+            console.log('[App] Celestial profile:', celestialProfile);
 
             UI.updateLoadingText('Reading the Singapore sky\u2026');
             var weather = await getWeather();
+            console.log('[App] Weather:', weather);
 
             UI.updateLoadingText('Searching the museum archives\u2026');
             var vaseData = await getVaseData();
+            console.log('[App] Vase data:', vaseData);
 
             // -------------------------------------------------------
             // PHASE 2: Symbolism Processing
@@ -99,6 +122,8 @@ const App = (function () {
 
             UI.updateLoadingText('Selecting the blooms\u2026');
             var bouquetRecipe = composeBouquet(weather, celestialProfile);
+            bouquetRecipe = normalizeBouquetRecipe(bouquetRecipe);
+            console.log('[App] Bouquet recipe:', bouquetRecipe);
 
             // -------------------------------------------------------
             // PHASE 3: Image Processing
@@ -124,25 +149,146 @@ const App = (function () {
             // let the final message linger before revealing results
             await pause(600);
 
-            UI.showReceipt({
-                vaseInfo:         vaseData,
-                weather:          weather,
-                celestialProfile: celestialProfile,
-                bouquetRecipe:    bouquetRecipe
-            });
-
-            UI.displayWeather(weather);
-            UI.displayCelestial(celestialProfile);
-            UI.displayMuseum(vaseData);
-            UI.displayFloraList(bouquetRecipe);
+            try {
+                UI.showReceipt({
+                    vaseInfo:         vaseData,
+                    weather:          weather,
+                    celestialProfile: celestialProfile,
+                    bouquetRecipe:    bouquetRecipe
+                });
+                UI.displayWeather(weather);
+                UI.displayCelestial(celestialProfile);
+                UI.displayMuseum(vaseData);
+                UI.displayFloraList(bouquetRecipe);
+            } catch (uiError) {
+                console.warn('[App] UI display error (non-fatal):', uiError);
+            }
 
         } catch (error) {
             console.error('[App] Generation failed:', error);
-            UI.showError('The arrangement could not be completed.');
+            UI.showError('The arrangement could not be completed. (' + (error.message || error) + ')');
         } finally {
             UI.hideLoading();
             isGenerating = false;
         }
+    }
+
+    // -------------------------------------------------------------------
+    // Data normalization — bridge different module return shapes
+    // -------------------------------------------------------------------
+
+    /**
+     * Normalize the celestial profile so sunSign, venusSign, moonPhase
+     * are always STRINGS (the AstronomyEngine may return objects).
+     */
+    function normalizeCelestialProfile(profile) {
+        if (!profile) return getFallbackCelestialProfile('1995-11-04');
+
+        var normalized = {};
+        for (var key in profile) {
+            if (profile.hasOwnProperty(key)) {
+                normalized[key] = profile[key];
+            }
+        }
+
+        // sunSign: could be object { name, symbol, ... } or string
+        if (normalized.sunSign && typeof normalized.sunSign === 'object') {
+            normalized.sunSignData = normalized.sunSign; // preserve original
+            normalized.sunSign = normalized.sunSign.name || 'Aries';
+        }
+
+        // venusSign: could be object { name, symbol, ... } or string
+        if (normalized.venusSign && typeof normalized.venusSign === 'object') {
+            normalized.venusSignData = normalized.venusSign;
+            normalized.venusSign = normalized.venusSign.name || 'Libra';
+        }
+
+        // marsSign: could be object or string
+        if (normalized.marsSign && typeof normalized.marsSign === 'object') {
+            normalized.marsSign = normalized.marsSign.name || 'Aries';
+        }
+
+        // moonPhase: could be object { phase, angle, illumination, emoji } or string
+        if (normalized.moonPhase && typeof normalized.moonPhase === 'object') {
+            normalized.moonIllumination = normalized.moonPhase.illumination;
+            normalized.moonPhaseAngle = normalized.moonPhase.angle;
+            normalized.moonPhaseEmoji = normalized.moonPhase.emoji;
+            normalized.moonPhase = normalized.moonPhase.phase || 'Waxing Crescent';
+        }
+
+        // Ensure moonIllumination is always a number (0-1)
+        if (typeof normalized.moonIllumination !== 'number') {
+            normalized.moonIllumination = 0.5;
+        }
+
+        return normalized;
+    }
+
+    /**
+     * Normalize the bouquet recipe so it has:
+     * - flowers: flat array of { name, role, reason, symbolism, colors }
+     * - allFlowers: same as flowers (alias)
+     * - primary, accent, foliage arrays for the CompositionEngine
+     */
+    function normalizeBouquetRecipe(recipe) {
+        if (!recipe) return getFallbackBouquet({}, {});
+
+        // Build a flat "flowers" array for the UI from the structured recipe
+        var flowers = [];
+
+        function extractFlower(item, fallbackRole) {
+            if (!item) return null;
+            // The SymbolismEngine items have shape: { flower: {...}, role, reason }
+            var flowerData = item.flower || item;
+            return {
+                name: flowerData.common || flowerData.name || flowerData.scientific || 'Unknown bloom',
+                scientific: flowerData.scientific || '',
+                role: item.role || fallbackRole || '',
+                reason: item.reason || '',
+                symbolism: flowerData.symbolism || item.symbolism || '',
+                meaning: flowerData.symbolism || item.meaning || '',
+                colors: flowerData.colors || item.colors || ['#E8557A', '#C94060', '#F4A0B0'],
+                color: (flowerData.colors && flowerData.colors[0]) || '#E8557A'
+            };
+        }
+
+        // Extract from SymbolismEngine structure
+        var primary = recipe.primary || [];
+        var loveAccent = recipe.loveAccent || [];
+        var moonAccent = recipe.moonAccent || [];
+        var weatherAccent = recipe.weatherAccent || [];
+        var paletteAccent = recipe.paletteAccent || [];
+
+        primary.forEach(function(f) { var n = extractFlower(f, 'Primary (Zodiac)'); if (n) flowers.push(n); });
+        loveAccent.forEach(function(f) { var n = extractFlower(f, 'Love Accent (Venus)'); if (n) flowers.push(n); });
+        moonAccent.forEach(function(f) { var n = extractFlower(f, 'Moon Accent'); if (n) flowers.push(n); });
+        weatherAccent.forEach(function(f) { var n = extractFlower(f, 'Weather Accent'); if (n) flowers.push(n); });
+        paletteAccent.forEach(function(f) { var n = extractFlower(f, 'Palette Accent'); if (n) flowers.push(n); });
+
+        // If we already have a flat "flowers" array from the fallback system, use it
+        if (flowers.length === 0 && recipe.flowers) {
+            flowers = recipe.flowers;
+        }
+
+        // Copy the recipe and augment it
+        var normalized = {};
+        for (var key in recipe) {
+            if (recipe.hasOwnProperty(key)) {
+                normalized[key] = recipe[key];
+            }
+        }
+        normalized.flowers = flowers;
+        normalized.selections = flowers; // alias for UI compat
+
+        // Ensure primary/accent/foliage arrays exist for CompositionEngine
+        if (!normalized.accent) {
+            normalized.accent = [].concat(loveAccent, moonAccent, weatherAccent, paletteAccent);
+        }
+
+        // Ensure totalBlooms
+        normalized.totalBlooms = normalized.totalBlooms || normalized.totalCount || flowers.length || 8;
+
+        return normalized;
     }
 
     // -------------------------------------------------------------------
@@ -234,7 +380,7 @@ const App = (function () {
             typeof SymbolismEngine.composeBouquet === 'function') {
             try {
                 var recipe = SymbolismEngine.composeBouquet(weather, celestialProfile);
-                if (recipe && (recipe.allFlowers || recipe.primary || recipe.flowers || recipe.selections)) {
+                if (recipe) {
                     return recipe;
                 }
             } catch (e) {
@@ -721,11 +867,7 @@ const App = (function () {
         // -----------------------------------------------------------
         // Background gradient — warm parchment tones
         // -----------------------------------------------------------
-        var bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-        bgGrad.addColorStop(0, '#f5f0eb');
-        bgGrad.addColorStop(0.5, '#ece5dc');
-        bgGrad.addColorStop(1, '#e8dfd4');
-        ctx.fillStyle = bgGrad;
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
 
         // -----------------------------------------------------------
