@@ -87,6 +87,24 @@ const App = (function () {
             var vaseData = await getVaseData();
             console.log('[App] Vase data:', vaseData);
 
+            // PHASE 1b: Process vase image (background removal, mouth detection, lip mask)
+            if (vaseData && vaseData.imageUrl && typeof ImageProcessor !== 'undefined' &&
+                typeof ImageProcessor.processVaseImage === 'function') {
+                try {
+                    UI.updateLoadingText('Preparing the vessel\u2026');
+                    var processed = await ImageProcessor.processVaseImage(vaseData.imageUrl);
+                    if (processed) {
+                        vaseData.processedImageDataUrl = processed.processedImageDataUrl;
+                        vaseData.lipMaskDataUrl = processed.lipMaskDataUrl;
+                        vaseData.mouth = processed.mouth;
+                        vaseData.dimensions = processed.dimensions;
+                        console.log('[App] Vase image processed — mouth detected at', processed.mouth);
+                    }
+                } catch (procErr) {
+                    console.warn('[App] Vase image processing failed (using raw image):', procErr.message);
+                }
+            }
+
             // PHASE 2: Symbolism Processing
             UI.updateLoadingText('Selecting the blooms\u2026');
             var bouquetRecipe = composeBouquet(weather, celestialProfile);

@@ -66,11 +66,19 @@ body {
 .comp-flower {
   user-select: none;
   -webkit-user-drag: none;
+  mix-blend-mode: multiply;
 }
 
 .comp-foliage {
   user-select: none;
   -webkit-user-drag: none;
+  mix-blend-mode: multiply;
+}
+
+.comp-vase-lip {
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 /* ---------- Separator ---------- */
