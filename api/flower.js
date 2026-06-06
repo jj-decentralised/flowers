@@ -7,9 +7,10 @@ module.exports = async function handler(req, res) {
 
   try {
     const force = req.query.force === '1';
-    const data = await getFlower({ force });
+    const preview = req.query.preview === '1';
+    const data = await getFlower({ force, preview });
 
-    res.setHeader('Cache-Control', force
+    res.setHeader('Cache-Control', (force || preview)
       ? 'no-store'
       : 'public, s-maxage=' + secondsUntilSingaporeMidnight() + ', stale-while-revalidate=3600'
     );

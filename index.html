@@ -233,7 +233,7 @@
         setTimeout(spawnLoop, 1500);
       }
 
-      fetch('/api/flower')
+      fetch('/api/flower?preview=1&_=' + Date.now())
         .then(function (res) {
           return res.json().then(function (data) {
             if (!res.ok) throw new Error(data.error || 'Flower generation failed');

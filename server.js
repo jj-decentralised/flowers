@@ -10,7 +10,10 @@ app.use(express.static(__dirname));
 
 app.get('/api/flower', async (req, res) => {
   try {
-    const data = await getFlower({ force: req.query.force === '1' });
+    const data = await getFlower({
+      force: req.query.force === '1',
+      preview: req.query.preview === '1'
+    });
     res.json(data);
   } catch (err) {
     console.error('Flower generation failed:', err.message);
