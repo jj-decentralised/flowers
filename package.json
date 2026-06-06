@@ -1,0 +1,19 @@
+{
+  "name": "flowers-for-vyshnavi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daily context-aware hand-drawn flowers for Vyshnavi via Recraft API v4",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.19",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
