@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>For You</title>
+  <title>For Vyshnavi</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
 
@@ -81,6 +81,14 @@
       text-transform: uppercase;
       color: #b8a99e;
       font-style: normal;
+    }
+
+    .flower-caption.birthday {
+      color: #a08058;
+    }
+
+    .flower-caption.birthday .influence {
+      color: #c4a060;
     }
 
     .salutation {
@@ -174,13 +182,13 @@
   <div id="petals-container"></div>
 
   <main class="page">
-    <div class="bouquet" id="bouquet" aria-label="A hand-drawn flower made for you today"></div>
+    <div class="bouquet" id="bouquet" aria-label="A hand-drawn flower composed for Vyshnavi today"></div>
 
     <p class="flower-caption" id="flower-caption">
       Composing your flower from the sky above Singapore&hellip;
     </p>
 
-    <p class="salutation">My Love,</p>
+    <p class="salutation">Vyshnavi,</p>
 
     <div class="letter">
       <p>
@@ -225,6 +233,14 @@
       'use strict';
 
       var SINGAPORE = { lat: 1.3521, lng: 103.8198, name: 'Singapore' };
+
+      var VYSHNAVI = {
+        name: 'Vyshnavi',
+        birthYear: 1995,
+        birthMonth: 11,
+        birthDay: 29,
+        birthHour: 12
+      };
 
       var BRIGHT_STARS = [
         { name: 'Sirius', ra: 6.752, dec: -16.716 },
@@ -335,6 +351,38 @@
           });
       }
 
+      function getBirthSkyContext() {
+        var birth = new Date(VYSHNAVI.birthYear, VYSHNAVI.birthMonth, VYSHNAVI.birthDay, VYSHNAVI.birthHour);
+        var time = new Astronomy.AstroTime(birth);
+        var observer = new Astronomy.Observer(SINGAPORE.lat, SINGAPORE.lng, 15);
+        var visibleStars = [];
+
+        BRIGHT_STARS.forEach(function (star) {
+          var h = Astronomy.Horizon(time, observer, star.ra, star.dec, 'normal');
+          if (h.altitude > 5) {
+            visibleStars.push({
+              name: star.name,
+              altitude: h.altitude,
+              azimuth: h.azimuth
+            });
+          }
+        });
+
+        visibleStars.sort(function (a, b) { return b.altitude - a.altitude; });
+        var moonPhase = Astronomy.Illumination(Astronomy.Body.Moon, time);
+
+        return {
+          dominantStar: visibleStars[0] || null,
+          starCount: visibleStars.length,
+          moonPhase: moonPhase.phase_fraction,
+          dateLabel: '29 December 1995'
+        };
+      }
+
+      function isVyshnaviBirthday(now) {
+        return now.getMonth() === VYSHNAVI.birthMonth && now.getDate() === VYSHNAVI.birthDay;
+      }
+
       function getSkyContext(now) {
         var time = new Astronomy.AstroTime(now);
         var observer = new Astronomy.Observer(SINGAPORE.lat, SINGAPORE.lng, 15);
@@ -382,14 +430,21 @@
         };
       }
 
-      function buildContext(weather, now) {
+      function buildContext(weather, now, birthSky) {
         var sky = getSkyContext(now);
         var day = now.getDay();
         var dateKey = now.getFullYear() + '-' +
           String(now.getMonth() + 1).padStart(2, '0') + '-' +
           String(now.getDate()).padStart(2, '0');
+        var birthday = isVyshnaviBirthday(now);
 
         var seedString = [
+          VYSHNAVI.name,
+          VYSHNAVI.birthDay,
+          VYSHNAVI.birthMonth + 1,
+          VYSHNAVI.birthYear,
+          birthSky.dominantStar ? birthSky.dominantStar.name : 'none',
+          Math.round(birthSky.moonPhase * 100),
           dateKey,
           day,
           weather.current.temperature_2m,
@@ -399,7 +454,8 @@
           sky.starCount,
           sky.dominantStar ? sky.dominantStar.name : 'none',
           Math.round(sky.moonPhase * 100),
-          sky.dominantStar ? Math.round(sky.dominantStar.azimuth) : 0
+          sky.dominantStar ? Math.round(sky.dominantStar.azimuth) : 0,
+          birthday ? 'birthday' : 'ordinary'
         ].join('|');
 
         return {
@@ -410,7 +466,10 @@
           month: now.getMonth(),
           seed: hashString(seedString),
           weather: weather.current,
-          sky: sky
+          sky: sky,
+          birthSky: birthSky,
+          isBirthday: birthday,
+          age: birthday ? now.getFullYear() - VYSHNAVI.birthYear : null
         };
       }
 
@@ -421,6 +480,7 @@
         var rain = clamp(ctx.weather.precipitation / 8, 0, 1);
         var warmth = clamp((temp - 22) / 14, 0, 1);
         var season = ctx.month;
+        var birthStar = ctx.birthSky.dominantStar;
 
         var warmBase = mixColors('#f2c4a8', '#d4917e', warmth);
         var coolBase = mixColors('#b8c8d8', '#8aa0b8', rain + clouds * 0.4);
@@ -433,6 +493,11 @@
         ][season];
 
         petal = mixColors(petal, seasonalTint, 0.35 + humidity / 300);
+
+        if (birthStar && birthStar.name === 'Antares') {
+          petal = mixColors(petal, '#c87068', 0.18);
+        }
+
         var petalDeep = mixColors(petal, '#8b5a4a', 0.22 + warmth * 0.1);
         var petalStroke = mixColors(petalDeep, '#5a3d35', 0.18);
         var stem = mixColors('#8aaa7a', '#5f7d58', clouds * 0.35 + rain * 0.2);
@@ -440,12 +505,26 @@
         var accent = ctx.sky.isNight
           ? mixColors('#f0e6c8', '#c8b888', ctx.sky.moonIllumination)
           : mixColors('#fff4e0', '#f5d9a8', warmth);
+        var birthdayGold = mixColors('#f5d78e', '#d4a84b', 0.45);
 
         if (ctx.sky.isNight && ctx.sky.starCount > 4) {
           accent = mixColors(accent, '#e8d8ff', 0.25);
         }
 
-        return { petal: petal, petalDeep: petalDeep, petalStroke: petalStroke, stem: stem, leaf: leaf, accent: accent };
+        if (ctx.isBirthday) {
+          petal = mixColors(petal, '#e8b8a0', 0.28);
+          accent = mixColors(accent, birthdayGold, 0.55);
+        }
+
+        return {
+          petal: petal,
+          petalDeep: petalDeep,
+          petalStroke: petalStroke,
+          stem: stem,
+          leaf: leaf,
+          accent: accent,
+          birthdayGold: birthdayGold
+        };
       }
 
       function FlowerGenerator(rng, palette, ctx) {
@@ -543,15 +622,28 @@
         }
       };
 
-      FlowerGenerator.prototype.drawBloom = function (cx, cy, size, type) {
-        var rainDroop = clamp(this.ctx.weather.precipitation / 6, 0, 1);
-        var starTilt = this.ctx.sky.dominantStar
+      FlowerGenerator.prototype.birthTilt = function () {
+        var todayTilt = this.ctx.sky.dominantStar
           ? (this.ctx.sky.dominantStar.azimuth - 180) / 180 * 8
           : 0;
-        var petalCount = clamp(
-          5 + (this.ctx.sky.starCount % 4) + (this.ctx.dayOfMonth % 3),
+        var birthTilt = this.ctx.birthSky.dominantStar
+          ? (this.ctx.birthSky.dominantStar.azimuth - 180) / 180 * 5
+          : 0;
+        return todayTilt * 0.62 + birthTilt * 0.38;
+      };
+
+      FlowerGenerator.prototype.birthPetalCount = function () {
+        return clamp(
+          5 + (this.ctx.sky.starCount % 4) + (VYSHNAVI.birthDay % 3) + (this.ctx.birthSky.starCount % 2),
           5, 9
         );
+      };
+
+      FlowerGenerator.prototype.drawBloom = function (cx, cy, size, type, options) {
+        options = options || {};
+        var rainDroop = clamp(this.ctx.weather.precipitation / 6, 0, 1);
+        var starTilt = options.tilt != null ? options.tilt : this.birthTilt();
+        var petalCount = options.petals || this.birthPetalCount();
 
         cy += rainDroop * 6;
         cx += starTilt;
@@ -565,30 +657,34 @@
           opacity: '0.18'
         });
 
+        var bloomPetal = options.fill || this.palette.petal;
+        var bloomDeep = options.fillDeep || this.palette.petalDeep;
+        var bloomAccent = options.accent || this.palette.accent;
+
         if (type === 'rose') {
-          this.drawPetalLayer(cx, cy, size, petalCount, this.rng() * 0.4, this.palette.petal, this.palette.petalStroke, 0.42, 2.2);
-          this.drawPetalLayer(cx, cy, size * 0.72, petalCount, 0.3 + this.rng() * 0.5, this.palette.petal, this.palette.petalStroke, 0.58, 1.8);
-          this.drawPetalLayer(cx, cy, size * 0.45, Math.max(5, petalCount - 2), 0.8, this.palette.petalDeep, this.palette.petalStroke, 0.72, 1.2);
+          this.drawPetalLayer(cx, cy, size, petalCount, this.rng() * 0.4, bloomPetal, this.palette.petalStroke, 0.42, 2.2);
+          this.drawPetalLayer(cx, cy, size * 0.72, petalCount, 0.3 + this.rng() * 0.5, bloomPetal, this.palette.petalStroke, 0.58, 1.8);
+          this.drawPetalLayer(cx, cy, size * 0.45, Math.max(5, petalCount - 2), 0.8, bloomDeep, this.palette.petalStroke, 0.72, 1.2);
         } else if (type === 'peony') {
-          this.drawPetalLayer(cx, cy, size * 1.05, petalCount + 2, 0, this.palette.petal, this.palette.petalStroke, 0.38, 2.8);
-          this.drawPetalLayer(cx, cy, size * 0.82, petalCount + 1, 0.4, this.palette.petal, this.palette.petalStroke, 0.52, 2.2);
-          this.drawPetalLayer(cx, cy, size * 0.55, petalCount, 0.9, this.palette.petalDeep, this.palette.petalStroke, 0.68, 1.6);
+          this.drawPetalLayer(cx, cy, size * 1.05, petalCount + 2, 0, bloomPetal, this.palette.petalStroke, 0.38, 2.8);
+          this.drawPetalLayer(cx, cy, size * 0.82, petalCount + 1, 0.4, bloomPetal, this.palette.petalStroke, 0.52, 2.2);
+          this.drawPetalLayer(cx, cy, size * 0.55, petalCount, 0.9, bloomDeep, this.palette.petalStroke, 0.68, 1.6);
         } else if (type === 'daisy') {
           this.drawPetalLayer(cx, cy, size * 0.95, petalCount + 3, this.rng(), '#faf3e8', mixColors(this.palette.petalStroke, '#d8ccb8', 0.5), 0.75, 1.4);
           this.add('circle', {
             cx: cx.toFixed(1),
             cy: cy.toFixed(1),
             r: (size * 0.22).toFixed(1),
-            fill: this.palette.accent,
+            fill: bloomAccent,
             opacity: '0.85'
           });
         } else {
-          this.drawPetalLayer(cx, cy, size * 0.88, petalCount, -0.2, this.palette.petal, this.palette.petalStroke, 0.5, 2);
-          this.drawPetalLayer(cx, cy, size * 0.58, petalCount - 1, 0.5, this.palette.petalDeep, this.palette.petalStroke, 0.66, 1.5);
+          this.drawPetalLayer(cx, cy, size * 0.88, petalCount, -0.2, bloomPetal, this.palette.petalStroke, 0.5, 2);
+          this.drawPetalLayer(cx, cy, size * 0.58, petalCount - 1, 0.5, bloomDeep, this.palette.petalStroke, 0.66, 1.5);
         }
 
-        if (this.ctx.sky.isNight || this.ctx.sky.moonVisible) {
-          var sparkleCount = clamp(Math.round(this.ctx.sky.starCount / 2), 2, 6);
+        if (options.sparkle || this.ctx.sky.isNight || this.ctx.sky.moonVisible) {
+          var sparkleCount = options.sparkle ? 8 : clamp(Math.round(this.ctx.sky.starCount / 2), 2, 6);
           for (var s = 0; s < sparkleCount; s++) {
             var a = this.rng() * Math.PI * 2;
             var dist = this.rng() * size * 0.18;
@@ -598,7 +694,7 @@
               cx: sx.toFixed(1),
               cy: sy.toFixed(1),
               r: (0.8 + this.rng() * 1.2).toFixed(1),
-              fill: this.palette.accent,
+              fill: bloomAccent,
               opacity: (0.35 + this.rng() * 0.35).toFixed(2)
             });
           }
@@ -608,18 +704,43 @@
             cy: (cy - size * 0.05).toFixed(1),
             rx: (size * 0.12).toFixed(1),
             ry: (size * 0.1).toFixed(1),
-            fill: this.palette.petalDeep,
+            fill: bloomDeep,
             opacity: '0.55'
           });
         }
       };
 
+      FlowerGenerator.prototype.drawBirthdayBloom = function () {
+        var cx = 140;
+        var cy = 88;
+        var size = 24;
+        var goldPetal = mixColors(this.palette.petal, this.palette.birthdayGold, 0.42);
+        var goldDeep = mixColors(this.palette.petalDeep, '#b8883a', 0.35);
+
+        this.drawStem(cx, 118, 34, 0, 0.9);
+        this.drawBloom(cx, cy, size, 'rose', {
+          fill: goldPetal,
+          fillDeep: goldDeep,
+          accent: this.palette.birthdayGold,
+          petals: 9,
+          tilt: 0,
+          sparkle: true
+        });
+      };
+
       FlowerGenerator.prototype.generate = function () {
-        var bloomCount = clamp(3 + Math.floor(this.ctx.sky.starCount / 3) + (this.ctx.dayOfMonth % 3), 3, 7);
+        var bloomCount = clamp(
+          3 + Math.floor(this.ctx.sky.starCount / 3) + (VYSHNAVI.birthDay % 3) + (this.ctx.isBirthday ? 1 : 0),
+          3, 8
+        );
         var types = ['rose', 'peony', 'wild', 'daisy', 'rose', 'peony'];
         var centerX = 140;
         var anchorY = 210;
         var rainDroop = clamp(this.ctx.weather.precipitation / 5, 0, 1);
+
+        if (this.ctx.isBirthday) {
+          this.drawBirthdayBloom();
+        }
 
         for (var i = 0; i < bloomCount; i++) {
           var spread = (i - (bloomCount - 1) / 2) * (38 + this.rng() * 12);
@@ -679,34 +800,54 @@
       function buildCaption(ctx) {
         var w = ctx.weather;
         var sky = ctx.sky;
+        var birth = ctx.birthSky;
         var lines = [];
 
-        lines.push(
-          'This flower was drawn for you on ' + ctx.dayName + ' — ' +
-          weatherPhrase(w.weather_code) + ' at ' + Math.round(w.temperature_2m) + '°C'
-        );
+        if (ctx.isBirthday) {
+          lines.push(
+            'Happy birthday, ' + VYSHNAVI.name + ' — this golden bloom is yours alone today'
+          );
+          lines.push(
+            'woven from the sky above Singapore on the day you arrived, ' + birth.dateLabel +
+            ', when ' + (birth.dominantStar ? birth.dominantStar.name : 'the stars') +
+            ' stood overhead'
+          );
+        } else {
+          lines.push(
+            'Drawn for ' + VYSHNAVI.name + ' on ' + ctx.dayName + ' — ' +
+            weatherPhrase(w.weather_code) + ' at ' + Math.round(w.temperature_2m) + '°C'
+          );
+        }
 
         if (sky.dominantStar) {
           lines.push(
-            'with ' + sky.dominantStar.name + ' overhead, tilting the petals toward ' +
+            'with ' + sky.dominantStar.name + ' overhead, petals leaning toward ' +
             (sky.dominantStar.azimuth < 90 || sky.dominantStar.azimuth > 270 ? 'the east' : 'the west')
           );
         } else if (sky.isNight) {
           lines.push('under a soft Singapore night, with ' + moonPhrase(sky.moonPhase));
-        } else {
+        } else if (!ctx.isBirthday) {
           lines.push('while ' + moonPhrase(sky.moonPhase) + ' waits beyond the daylight');
         }
 
+        if (!ctx.isBirthday && birth.dominantStar) {
+          lines.push(
+            'and a quiet trace of ' + birth.dominantStar.name + ', the star that watched over your first day'
+          );
+        }
+
         var influence = [
-          ctx.dayName.slice(0, 3).toUpperCase(),
+          ctx.isBirthday ? ('BIRTHDAY · ' + ctx.age) : ctx.dayName.slice(0, 3).toUpperCase(),
+          '29 · 12 · 1995',
+          birth.dominantStar ? birth.dominantStar.name : 'birth star',
           Math.round(w.relative_humidity_2m) + '% humidity',
-          sky.starCount + ' stars visible',
-          sky.starCount + ' blooms'
+          sky.starCount + ' stars tonight'
         ].join(' · ');
 
         return {
           main: lines.join(', ') + '.',
-          influence: influence
+          influence: influence,
+          isBirthday: ctx.isBirthday
         };
       }
 
@@ -719,7 +860,9 @@
         document.getElementById('bouquet').innerHTML = svg;
 
         var caption = buildCaption(ctx);
-        document.getElementById('flower-caption').innerHTML =
+        var captionEl = document.getElementById('flower-caption');
+        captionEl.classList.toggle('birthday', caption.isBirthday);
+        captionEl.innerHTML =
           caption.main +
           '<span class="influence">' + caption.influence + '</span>';
 
@@ -786,7 +929,8 @@
 
       fetchWeather().then(function (weather) {
         var now = new Date();
-        var ctx = buildContext(weather, now);
+        var birthSky = getBirthSkyContext();
+        var ctx = buildContext(weather, now, birthSky);
         renderBouquet(ctx);
         var palette = paletteFromContext(ctx);
         startPetals([palette.petal, palette.petalDeep, mixColors(palette.petal, '#ffffff', 0.3), palette.accent]);
