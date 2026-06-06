@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "functions": {
+    "api/flower.js": {
+      "maxDuration": 60
+    },
+    "api/cron/flower.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/flower",
+      "schedule": "0 16 * * *"
+    }
+  ]
+}
