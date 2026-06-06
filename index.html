@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>For Vyshnavi</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap');
 
     *, *::before, *::after {
       box-sizing: border-box;
@@ -19,7 +19,7 @@
     }
 
     body {
-      font-family: 'EB Garamond', 'Georgia', serif;
+      font-family: 'Cormorant Garamond', 'Georgia', serif;
       background-color: #faf8f5;
       color: #2c2420;
       min-height: 100vh;
@@ -37,18 +37,19 @@
     .page {
       position: relative;
       z-index: 1;
-      max-width: 520px;
+      min-height: 100vh;
+      max-width: 420px;
       margin: 0 auto;
-      padding: 6rem 2rem 5rem;
+      padding: 3rem 1.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
     }
 
     .bouquet {
-      width: min(320px, 100%);
-      min-height: 380px;
-      margin-bottom: 1.5rem;
+      width: min(360px, 100%);
+      min-height: 460px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -59,14 +60,13 @@
     .bouquet img {
       width: 100%;
       height: auto;
-      max-height: 420px;
+      max-height: 520px;
       object-fit: contain;
       border-radius: 2px;
       filter: drop-shadow(0 8px 24px rgba(44, 36, 32, 0.08));
     }
 
     .bouquet-loading {
-      font-family: 'Cormorant Garamond', 'Georgia', serif;
       font-size: 0.95rem;
       font-style: italic;
       font-weight: 300;
@@ -77,7 +77,6 @@
     }
 
     .bouquet-error {
-      font-family: 'EB Garamond', 'Georgia', serif;
       font-size: 0.9rem;
       color: #8b6f5e;
       text-align: center;
@@ -87,15 +86,14 @@
     }
 
     .flower-caption {
-      max-width: 360px;
+      max-width: 340px;
+      margin-top: 1.5rem;
       text-align: center;
-      font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-style: italic;
       font-weight: 300;
       line-height: 1.65;
       color: #9a8578;
-      margin-bottom: 2.5rem;
       opacity: 0;
       animation: fadeIn 1s ease 1s forwards;
     }
@@ -103,7 +101,7 @@
     .flower-caption .influence {
       display: block;
       margin-top: 0.6rem;
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: #b8a99e;
@@ -118,73 +116,6 @@
       color: #c4a060;
     }
 
-    .salutation {
-      font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: 1.6rem;
-      font-weight: 300;
-      font-style: italic;
-      color: #8b6f5e;
-      margin-bottom: 2.5rem;
-      opacity: 0;
-      animation: fadeIn 1s ease 0.8s forwards;
-    }
-
-    .letter {
-      width: 100%;
-      line-height: 1.85;
-      font-size: 1.05rem;
-      color: #3d3330;
-      letter-spacing: 0.01em;
-    }
-
-    .letter p {
-      margin-bottom: 1.4rem;
-      opacity: 0;
-      animation: fadeIn 1s ease forwards;
-    }
-
-    .letter p:nth-child(1) { animation-delay: 1.1s; }
-    .letter p:nth-child(2) { animation-delay: 1.5s; }
-    .letter p:nth-child(3) { animation-delay: 1.9s; }
-    .letter p:nth-child(4) { animation-delay: 2.3s; }
-    .letter p:nth-child(5) { animation-delay: 2.7s; }
-
-    .closing {
-      margin-top: 2rem;
-      text-align: right;
-      width: 100%;
-      opacity: 0;
-      animation: fadeIn 1s ease 3.2s forwards;
-    }
-
-    .closing .forever {
-      font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-style: italic;
-      font-size: 1.25rem;
-      font-weight: 300;
-      color: #8b6f5e;
-      display: block;
-      margin-bottom: 0.3rem;
-    }
-
-    .closing .name {
-      font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: 1.1rem;
-      font-weight: 400;
-      color: #6b5549;
-      letter-spacing: 0.03em;
-    }
-
-    .date-line {
-      margin-top: 4rem;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: #b8a99e;
-      opacity: 0;
-      animation: fadeIn 1s ease 3.6s forwards;
-    }
-
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
@@ -197,9 +128,8 @@
     }
 
     @media (max-width: 540px) {
-      .page { padding: 4rem 1.5rem 3rem; }
-      .bouquet { min-height: 300px; }
-      .salutation { font-size: 1.35rem; }
+      .page { padding: 2rem 1.25rem; }
+      .bouquet { min-height: 360px; }
       html { font-size: 16px; }
     }
   </style>
@@ -209,51 +139,13 @@
   <div id="petals-container"></div>
 
   <main class="page">
-    <div class="bouquet" id="bouquet" aria-label="A hand-drawn flower composed for Vyshnavi today">
-      <p class="bouquet-loading">Painting today's flower<br>with Recraft&hellip;</p>
+    <div class="bouquet" id="bouquet" aria-label="Today's flower for Vyshnavi">
+      <p class="bouquet-loading">Painting today's flower&hellip;</p>
     </div>
 
     <p class="flower-caption" id="flower-caption">
-      Composing your flower from the sky above Singapore&hellip;
+      Composing from the sky above Singapore&hellip;
     </p>
-
-    <p class="salutation">Vyshnavi,</p>
-
-    <div class="letter">
-      <p>
-        There are mornings when the light comes through the window just right,
-        and I think of you before I think of anything else. Not with urgency,
-        but with the quiet certainty that you are the best part of every day
-        I have been given.
-      </p>
-      <p>
-        I don't always say it well enough. The words I have feel small next to
-        what I mean. But I want you to know: the way you laugh when you're
-        caught off guard, the way you hold my hand a little tighter when we're
-        walking somewhere new, the way you make even the ordinary feel like
-        something worth remembering &mdash; I notice. I always notice.
-      </p>
-      <p>
-        You make me want to be softer. Braver. More honest with the things
-        I carry. You make the world feel less like something to survive
-        and more like something to be grateful for.
-      </p>
-      <p>
-        I don't need a special day to tell you this, but I'll take one anyway:
-        thank you for choosing me. Thank you for staying. Thank you for being
-        exactly who you are.
-      </p>
-      <p>
-        I love you. Completely, quietly, and without condition.
-      </p>
-    </div>
-
-    <div class="closing">
-      <span class="forever">Forever yours,</span>
-      <span class="name">J</span>
-    </div>
-
-    <p class="date-line" id="date-line"></p>
   </main>
 
   <script>
@@ -273,7 +165,7 @@
         bouquet.innerHTML = '';
         var img = document.createElement('img');
         img.src = imageUrl;
-        img.alt = "Today's hand-drawn flower for Vyshnavi";
+        img.alt = "Today's flower for Vyshnavi";
         img.loading = 'eager';
         bouquet.appendChild(img);
       }
@@ -351,16 +243,12 @@
         .then(function (data) {
           showFlower(data.imageUrl);
           setCaption(data.caption);
-          document.getElementById('date-line').textContent = data.dateLine;
           startPetals();
         })
         .catch(function (err) {
-          showError(
-            'The flower could not be painted just now.',
-            err.message
-          );
+          showError('The flower could not be painted just now.', err.message);
           document.getElementById('flower-caption').textContent =
-            'Start the server with your Recraft API key to paint today\'s flower.';
+            'Check that RECRAFT_API_KEY is set on the server.';
           startPetals();
         });
     })();
